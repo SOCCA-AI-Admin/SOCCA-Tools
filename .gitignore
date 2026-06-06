@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.xlsx
+.env
+.env.*
+agent-transcripts/
+.cursor/
+assets/
+terminals/

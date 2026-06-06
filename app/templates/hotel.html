@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hotel-Bildbearbeitung</title>
+    <link rel="stylesheet" href="/static/hotel.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">SOCCA GROUP</p>
+        <h1>Trainingslager – Hotelbilder</h1>
+        <p class="lead">
+          Bilder technisch aufbereiten: 1800×1200 px, Format 3:2, JPG, Querformat (Originalfarben).
+          Benennung und ZIP-Export nach Hotel und Brand.
+        </p>
+      </header>
+
+      <form id="hotelForm" class="card">
+        <div class="field">
+          <label for="hotelName">Hotelname</label>
+          <input
+            id="hotelName"
+            name="hotel_name"
+            type="text"
+            required
+            placeholder="z. B. Hotel Sonnenblick"
+            autocomplete="off"
+          />
+        </div>
+
+        <fieldset class="field">
+          <legend>Brand <span class="required">*</span></legend>
+          <div class="brand-grid">
+            {% for brand in brands %}
+            <label class="brand-option">
+              <input type="radio" name="brand" value="{{ brand }}" required />
+              <span>{{ brand }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label>Bilder</label>
+          <div id="dropzone" class="dropzone" tabindex="0">
+            <p class="dropzone-title">Bilder oder ZIP hierher ziehen oder klicken</p>
+            <p class="dropzone-hint">JPG, PNG, WebP ... oder ZIP mit Bilddateien</p>
+            <input id="fileInput" type="file" accept="image/*,.zip,application/zip" multiple hidden />
+          </div>
+          <ul id="fileList" class="file-list" hidden></ul>
+        </div>
+
+        <div class="actions">
+          <button id="submitBtn" type="submit" class="btn primary" disabled>
+            Bilder bearbeiten &amp; ZIP laden
+          </button>
+        </div>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </form>
+
+      <section class="spec card">
+        <h2>Ausgabe-Spezifikation</h2>
+        <ul>
+          <li>Seitenverhältnis 3:2, Querformat, 1800 × 1200 px</li>
+          <li>Dateiformat JPG (ohne Farb- oder Kontrastbearbeitung)</li>
+          <li>Dateiname: <code>Hotelname_Brand_001.jpg</code> (fortlaufend)</li>
+          <li>ZIP-Datei: <code>Hotelname_Brand.zip</code></li>
+        </ul>
+      </section>
+    </main>
+
+    <script src="/static/hotel.js"></script>
+  </body>
+</html>

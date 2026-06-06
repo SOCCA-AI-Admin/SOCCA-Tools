@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice Export Tool</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Rechnungen zu Überweisungsexport</h1>
+      <p>Lade Rechnungen als PDF per Drag & Drop hoch und exportiere die Daten als Excel.</p>
+
+      <div id="dropzone" class="dropzone">
+        <p>PDF-Dateien hierher ziehen oder klicken</p>
+        <input id="fileInput" type="file" accept=".pdf" multiple hidden />
+      </div>
+
+      <button id="uploadBtn" class="btn" disabled>Verarbeiten & Excel erstellen</button>
+      <a id="downloadLink" class="btn secondary hidden" href="#">Excel herunterladen</a>
+
+      <section>
+        <h2>Erkannte Daten</h2>
+        <pre id="result">Noch keine Dateien hochgeladen.</pre>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+  </html>

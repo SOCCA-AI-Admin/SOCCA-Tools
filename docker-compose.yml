@@ -1,0 +1,9 @@
+services:
+  hotel-image-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hotel-image-tool
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
