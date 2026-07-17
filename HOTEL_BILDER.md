@@ -2,6 +2,8 @@
 
 Webbasiertes Tool zur Aufbereitung von Hotelbildern für Trainingslager-Präsentationen.
 
+> **Umgebung:** Dieses Setup (`127.0.0.1:8000`) ist die **Entwicklungs-/Testumgebung**. Produktivbetrieb und Deployment: [UMGEBUNGEN.md](UMGEBUNGEN.md).
+
 ## Funktionen
 
 - **Hotelname** (Freitext)
