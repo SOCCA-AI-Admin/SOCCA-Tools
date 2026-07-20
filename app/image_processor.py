@@ -88,62 +88,75 @@ def _auto_level_horizon(image: Image.Image) -> Image.Image:
     """Rotate slightly tilted images to a more horizontal position."""
     width, height = image.size
     rgb = image.convert("RGB")
-    frame = np.array(rgb)
-    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.Canny(blurred, 50, 150, apertureSize=3)
+    try:
+        frame = np.array(rgb)
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150, apertureSize=3)
 
-    lines = cv2.HoughLinesP(
-        edges,
-        rho=1,
-        theta=np.pi / 180,
-        threshold=90,
-        minLineLength=max(60, min(width, height) // 4),
-        maxLineGap=25,
-    )
-    if lines is None:
+        lines = cv2.HoughLinesP(
+            edges,
+            rho=1,
+            theta=np.pi / 180,
+            threshold=90,
+            minLineLength=max(60, min(width, height) // 4),
+            maxLineGap=25,
+        )
+        if lines is None:
+            return rgb
+
+        weighted_angles: list[tuple[float, float]] = []
+        for line in lines:
+            # OpenCV may return shape (N, 1, 4) or (N, 4) depending on build/version.
+            coords = np.asarray(line).reshape(-1)
+            if coords.size < 4:
+                continue
+            x1, y1, x2, y2 = (int(v) for v in coords[:4])
+            dx = x2 - x1
+            dy = y2 - y1
+            if dx == 0 and dy == 0:
+                continue
+            angle = float(np.degrees(np.arctan2(dy, dx)))
+            if angle > 90:
+                angle -= 180
+            elif angle < -90:
+                angle += 180
+            # Only consider near-horizontal lines.
+            if abs(angle) > 12:
+                continue
+            length = float(np.hypot(dx, dy))
+            if length < min(width, height) * 0.12:
+                continue
+            weighted_angles.append((angle, length))
+
+        if len(weighted_angles) < 10:
+            return rgb
+
+        angles = np.array([angle for angle, _ in weighted_angles], dtype=np.float32)
+        weights = np.array([weight for _, weight in weighted_angles], dtype=np.float32)
+        rotation_angle = _weighted_median(angles, weights)
+        spread = _weighted_median(np.abs(angles - rotation_angle), weights)
+
+        # Only rotate when signal is clear and tilt is meaningful.
+        if spread > 1.8 or abs(rotation_angle) < 1.2:
+            return rgb
+        rotation_angle = float(np.clip(rotation_angle, -5.0, 5.0))
+
+        rotated = rgb.rotate(
+            -rotation_angle,
+            resample=Image.Resampling.BICUBIC,
+            expand=True,
+            fillcolor=(255, 255, 255),
+        )
+        return ImageOps.fit(
+            rotated,
+            (width, height),
+            method=Image.Resampling.BICUBIC,
+            centering=(0.5, 0.5),
+        )
+    except Exception:
+        # Horizon leveling is optional; never fail the whole image pipeline.
         return rgb
-
-    weighted_angles: list[tuple[float, float]] = []
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        dx = x2 - x1
-        dy = y2 - y1
-        if dx == 0 and dy == 0:
-            continue
-        angle = float(np.degrees(np.arctan2(dy, dx)))
-        if angle > 90:
-            angle -= 180
-        elif angle < -90:
-            angle += 180
-        # Only consider near-horizontal lines.
-        if abs(angle) > 12:
-            continue
-        length = float(np.hypot(dx, dy))
-        if length < min(width, height) * 0.12:
-            continue
-        weighted_angles.append((angle, length))
-
-    if len(weighted_angles) < 10:
-        return rgb
-
-    angles = np.array([angle for angle, _ in weighted_angles], dtype=np.float32)
-    weights = np.array([weight for _, weight in weighted_angles], dtype=np.float32)
-    rotation_angle = _weighted_median(angles, weights)
-    spread = _weighted_median(np.abs(angles - rotation_angle), weights)
-
-    # Only rotate when signal is clear and tilt is meaningful.
-    if spread > 1.8 or abs(rotation_angle) < 1.2:
-        return rgb
-    rotation_angle = float(np.clip(rotation_angle, -5.0, 5.0))
-
-    rotated = rgb.rotate(
-        -rotation_angle,
-        resample=Image.Resampling.BICUBIC,
-        expand=True,
-        fillcolor=(255, 255, 255),
-    )
-    return ImageOps.fit(rotated, (width, height), method=Image.Resampling.BICUBIC, centering=(0.5, 0.5))
 
 
 def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
