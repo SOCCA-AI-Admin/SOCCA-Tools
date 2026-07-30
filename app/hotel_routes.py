@@ -12,6 +12,7 @@ from starlette.requests import Request
 from app.image_processor import (
     BRANDS,
     ImageTooSmallError,
+    SUPPORTED_IMAGE_EXTENSIONS,
     process_hotel_image,
     sanitize_filename_part,
     validate_min_pixel_count,
@@ -20,7 +21,7 @@ from app.image_processor import (
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".gif"}
+IMAGE_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS
 
 
 @router.get("/")

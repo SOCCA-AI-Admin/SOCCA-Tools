@@ -6,7 +6,20 @@ const fileList = document.getElementById("fileList");
 const submitBtn = document.getElementById("submitBtn");
 const statusEl = document.getElementById("status");
 const MIN_PIXEL_COUNT = 480000;
-const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".gif"];
+const IMAGE_EXTENSIONS = [
+  ".jpg",
+  ".jpeg",
+  ".jfif",
+  ".png",
+  ".webp",
+  ".bmp",
+  ".tif",
+  ".tiff",
+  ".gif",
+  ".heic",
+  ".heif",
+  ".avif",
+];
 
 let selectedFiles = [];
 
@@ -119,9 +132,21 @@ form.addEventListener("submit", async (e) => {
 });
 
 function addFiles(files) {
+  if (!files.length) {
+    setStatus("Keine Dateien ausgewählt.", "error");
+    return;
+  }
+
   const accepted = files.filter((f) => isSupportedInputFile(f));
   if (!accepted.length) {
-    setStatus("Keine gültigen Dateien erkannt (Bilder oder ZIP).", "error");
+    const rejected = files
+      .slice(0, 5)
+      .map((f) => `${f.name || "(ohne Namen)"} [${f.type || "unbekannter Typ"}]`)
+      .join(", ");
+    setStatus(
+      `Keine gültigen Dateien erkannt (Bilder oder ZIP). Abgelehnt: ${rejected}`,
+      "error"
+    );
     return;
   }
 
@@ -254,8 +279,25 @@ function hasImageExtension(file) {
   return IMAGE_EXTENSIONS.some((ext) => name.endsWith(ext));
 }
 
+function isHeicLikeMime(type) {
+  const mime = (type || "").toLowerCase();
+  return (
+    mime === "image/heic" ||
+    mime === "image/heif" ||
+    mime === "image/heic-sequence" ||
+    mime === "image/heif-sequence" ||
+    mime === "image/avif"
+  );
+}
+
 function isSupportedInputFile(file) {
-  return file.type.startsWith("image/") || hasImageExtension(file) || isZipFile(file);
+  const type = (file.type || "").toLowerCase();
+  return (
+    type.startsWith("image/") ||
+    isHeicLikeMime(type) ||
+    hasImageExtension(file) ||
+    isZipFile(file)
+  );
 }
 
 updateSubmitState();

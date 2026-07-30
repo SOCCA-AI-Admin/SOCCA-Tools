@@ -5,12 +5,13 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# OpenCV headless runtime dependencies
+# OpenCV headless + HEIC/HEIF runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
+    libheif1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

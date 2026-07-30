@@ -46,8 +46,14 @@
           <label>Bilder</label>
           <div id="dropzone" class="dropzone" tabindex="0">
             <p class="dropzone-title">Bilder oder ZIP hierher ziehen oder klicken</p>
-            <p class="dropzone-hint">JPG, PNG, WebP ... oder ZIP mit Bilddateien</p>
-            <input id="fileInput" type="file" accept="image/*,.zip,application/zip" multiple hidden />
+            <p class="dropzone-hint">JPG, PNG, WebP, HEIC (iPhone), AVIF … oder ZIP mit Bilddateien</p>
+            <input
+              id="fileInput"
+              type="file"
+              accept="image/*,.heic,.heif,.avif,.zip,application/zip"
+              multiple
+              hidden
+            />
           </div>
           <ul id="fileList" class="file-list" hidden></ul>
         </div>
@@ -72,6 +78,6 @@
       </section>
     </main>
 
-    <script src="/static/hotel.js"></script>
+    <script src="/static/hotel.js?v=heic1"></script>
   </body>
 </html>

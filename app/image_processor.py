@@ -7,6 +7,10 @@ from typing import Final
 import cv2
 import numpy as np
 from PIL import Image, ImageEnhance, ImageOps, ImageStat
+from pillow_heif import register_heif_opener
+
+# Enable iPhone HEIC/HEIF (and AVIF when available) via Pillow.
+register_heif_opener()
 
 TARGET_WIDTH: Final[int] = 1800
 TARGET_HEIGHT: Final[int] = 1200
@@ -14,6 +18,23 @@ TARGET_RATIO: Final[float] = 3 / 2
 JPEG_QUALITY: Final[int] = 90
 MIN_PIXEL_COUNT: Final[int] = 480_000
 MAX_TARGET_BYTES: Final[int] = 1_000_000
+
+SUPPORTED_IMAGE_EXTENSIONS: Final[frozenset[str]] = frozenset(
+    {
+        ".jpg",
+        ".jpeg",
+        ".jfif",
+        ".png",
+        ".webp",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".gif",
+        ".heic",
+        ".heif",
+        ".avif",
+    }
+)
 
 BRANDS: Final[tuple[str, ...]] = (
     "SOCCATOURS",

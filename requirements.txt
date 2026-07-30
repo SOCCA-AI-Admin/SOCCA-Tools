@@ -7,5 +7,6 @@ jinja2
 pymupdf
 pytesseract
 pillow
+pillow-heif
 numpy
 opencv-python-headless
