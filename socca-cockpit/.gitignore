@@ -1,5 +1,4 @@
-# Die Arbeitsmappen enthalten Umsatz-, Margen- und Personaldaten.
-# Sie gehören nicht in ein Git-Repository.
+# Sales.xlsb und C_AP.xlsx in data/ werden mit versioniert.
 #data/*
 #!data/.gitkeep
 web/*
