@@ -1,7 +1,7 @@
 # Die Arbeitsmappen enthalten Umsatz-, Margen- und Personaldaten.
 # Sie gehören nicht in ein Git-Repository.
-data/*
-!data/.gitkeep
+#data/*
+#!data/.gitkeep
 web/*
 !web/.gitkeep
 .state/
