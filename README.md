@@ -1,3 +1,15 @@
+# SOCCA-Tools
+
+Jedes Tool hat einen eigenen Bereich, eine eigene Python-Umgebung und einen eigenen Start. Das Sales Cockpit gehört nicht zum Rechnungs-Upload und nicht zur Hotel-Bildbearbeitung.
+
+| Tool | Ort | Umgebung |
+|---|---|---|
+| Rechnungs-Upload | `app/main.py` in diesem Ordner | `.venv` in der Repository-Wurzel |
+| Hotel-Bildbearbeitung | `app/hotel_app.py` | dieselbe Wurzel-Umgebung, Start mit `start-hotel.bat` |
+| SOCCA Sales Cockpit | `socca-cockpit/` | eigene `.venv` in `socca-cockpit/`, Anleitung in `socca-cockpit/README.md` |
+
+---
+
 # Invoice Upload MVP
 
 Ein minimales Grundgerüst für:

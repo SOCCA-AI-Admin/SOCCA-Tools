@@ -1,0 +1,21 @@
+Team;Monat;Leads
+# Plan-Leads je Team und Monat. Datei als data/AP_Leads.csv ablegen, update.sh liest sie mit.
+# Werte unten: August 2026 aus eurer bisherigen Monatsübersicht.
+# Achtung: Dort sind bei Leads die Spalten TECA, SWIM und LATR um eine Stelle verrutscht.
+# Ob das auch die AP-Zeile betrifft, bitte vor Übernahme prüfen.
+FUSU;2026-08;153
+FUNO;2026-08;177
+FUSO;2026-08;25
+FUFA;2026-08;236
+FUCH;2026-08;62
+FUAT;2026-08;187
+FUIT;2026-08;0
+FUCZ;2026-08;0
+FUES;2026-08;0
+FUHR;2026-08;0
+FUNL;2026-08;0
+FUNW;2026-08;10
+FUTU;2026-08;44
+TECA;2026-08;58
+SWIM;2026-08;54
+LATR;2026-08;45

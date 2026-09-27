@@ -1,0 +1,2 @@
+openpyxl>=3.1      # liest Sales.xlsx und C_AP.xlsx
+pyxlsb>=1.0        # nur nötig, solange die Mappe noch als .xlsb kommt

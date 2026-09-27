@@ -1,0 +1,4 @@
+# SOCCA Sales Cockpit — stündlich prüfen, ob die Mappen neu sind.
+# Einrichten mit:  crontab -e
+# Pfad anpassen, falls das Repository nicht unter /srv/socca-tools liegt.
+7 * * * * PYTHON=/srv/socca-tools/socca-cockpit/.venv/bin/python /srv/socca-tools/socca-cockpit/update.sh >/dev/null 2>&1

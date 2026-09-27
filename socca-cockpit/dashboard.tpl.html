@@ -1,0 +1,1716 @@
+<title>SOCCA Sales Cockpit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --soc-black:#000; --soc-white:#fff; --soc-dark:#414141; --soc-light:#f7f7f7;
+  --soc-grey:#d6d6d6; --rule:#ebebeb; --fg-muted:#7a7a7a;
+  --brand:#0bbbef; --brand-lime:#afca05;
+  --bg:#fff; --bg-alt:#f7f7f7; --surface:#fff; --fg:#414141; --fg-strong:#000;
+  --border:#d6d6d6;
+  /* Datenserien - abgedunkelte CI-Töne, gegen Weiß auf Kontrast geprüft */
+  --s-ist:#0b7fa8; --s-ap:#7d9100; --s-vj:#6e7a80;
+  --s-ist-soft:#e2f2f8; --s-ap-soft:#eef2dc; --s-vj-soft:#eef0f1;
+  --pos:#1c7c4a; --neg:#b4441a;
+  --grid:#ececec;
+  /* Sequenzielle Rampe, eine Hue aus dem CI-Cyan - hell nach dunkel */
+  --m0:#f2f5f6; --m1:#dcecf3; --m2:#b6d9e7; --m3:#82bed4;
+  --m4:#4a9cbd; --m5:#1c7ba2; --m6:#0a5b7a;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px;
+  --r-sm:2px; --r-md:4px; --r-lg:8px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08);
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#141414; --bg-alt:#1a1a19; --surface:#1e1e1d; --fg:#d4d3cd; --fg-strong:#fff;
+    --border:#39393a; --rule:#2c2c2b; --fg-muted:#96958e; --soc-light:#1a1a19;
+    --s-ist:#1a9ec8; --s-ap:#89a01f; --s-vj:#8a9299;
+    --s-ist-soft:#16323c; --s-ap-soft:#252c12; --s-vj-soft:#24272a;
+    --pos:#4bb37b; --neg:#e0764a; --grid:#2c2c2b;
+    --m0:#232325; --m1:#142831; --m2:#17414f; --m3:#1d5c72;
+    --m4:#277c99; --m5:#3899b8; --m6:#5fb7d1;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#141414; --bg-alt:#1a1a19; --surface:#1e1e1d; --fg:#d4d3cd; --fg-strong:#fff;
+  --border:#39393a; --rule:#2c2c2b; --fg-muted:#96958e; --soc-light:#1a1a19;
+  --s-ist:#1a9ec8; --s-ap:#89a01f; --s-vj:#8a9299;
+  --s-ist-soft:#16323c; --s-ap-soft:#252c12; --s-vj-soft:#24272a;
+  --pos:#4bb37b; --neg:#e0764a; --grid:#2c2c2b;
+  --m0:#232325; --m1:#142831; --m2:#17414f; --m3:#1d5c72;
+  --m4:#277c99; --m5:#3899b8; --m6:#5fb7d1;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:"Lato","Helvetica Neue",Arial,sans-serif;font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1440px;margin:0 auto;padding:0 var(--s-5) var(--s-7)}
+h1,h2,h3{color:var(--fg-strong);text-transform:uppercase;font-weight:900;letter-spacing:.01em;line-height:1.05;margin:0}
+.eyebrow{color:var(--brand);font-weight:900;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+
+/* ---------- Kopf ---------- */
+header{background:var(--soc-black);color:#fff;padding:var(--s-6) 0 0}
+header .bar{height:6px;background:linear-gradient(120deg,#0089cf 0%,#0bbbef 38%,#6dbe3a 70%,#afca05 100%)}
+header .inner{max-width:1440px;margin:0 auto;padding:0 var(--s-5) var(--s-6)}
+header h1{color:#fff;font-size:40px;margin:var(--s-2) 0 var(--s-3)}
+header p{color:#b9b9b4;font-size:14px;margin:0;max-width:90ch}
+.headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-5);flex-wrap:wrap}
+
+/* ---------- Steuerleiste ---------- */
+.controls{position:sticky;top:0;z-index:30;background:var(--bg-alt);
+  border-bottom:1px solid var(--border);padding:var(--s-4) 0;margin-bottom:var(--s-6)}
+.controls .inner{max-width:1440px;margin:0 auto;padding:0 var(--s-5);
+  display:flex;gap:var(--s-5);flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:var(--s-1)}
+.field>label{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-muted)}
+input[type=date],select{font-family:inherit;font-size:14px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:var(--r-md);background:var(--surface);color:var(--fg);min-height:34px}
+input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.presets{display:flex;gap:var(--s-1);flex-wrap:wrap}
+.chip{font-family:inherit;font-size:13px;font-weight:700;padding:6px 11px;border:1px solid var(--border);
+  background:var(--surface);color:var(--fg);border-radius:var(--r-md);cursor:pointer;
+  transition:background var(--ease) 140ms,border-color var(--ease) 140ms}
+.chip:hover{border-color:var(--fg-muted)}
+.chip[aria-pressed=true]{background:var(--fg-strong);color:var(--bg);border-color:var(--fg-strong)}
+.chip.sm{font-size:12px;padding:4px 9px}
+.spacer{flex:1 1 auto}
+
+/* ---------- Bausteine ---------- */
+section{margin-bottom:var(--s-7);scroll-margin-top:calc(var(--ctrlh,0px) + 16px)}
+.shead{display:flex;align-items:baseline;gap:var(--s-4);flex-wrap:wrap;
+  border-bottom:2px solid var(--fg-strong);padding-bottom:var(--s-2);margin-bottom:var(--s-5)}
+.shead h2{font-size:22px}
+.shead .hint{font-size:13px;color:var(--fg-muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s-5)}
+
+/* ---------- Funnel / Kacheln ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--s-3)}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--s-4);display:flex;flex-direction:column;gap:var(--s-1);min-width:0}
+.tile .k{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-muted)}
+.tile .v{font-size:28px;font-weight:900;color:var(--fg-strong);line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .sub{font-size:12px;color:var(--fg-muted);display:flex;gap:var(--s-3);flex-wrap:wrap;
+  font-variant-numeric:tabular-nums}
+.delta{font-weight:700;white-space:nowrap}
+.delta.up{color:var(--pos)} .delta.down{color:var(--neg)} .delta.flat{color:var(--fg-muted)}
+.tile.funnel{border-left:3px solid var(--s-ist)}
+.conv{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  color:var(--fg-muted);letter-spacing:.04em}
+
+/* ---------- Kleine Vergleichspanels ---------- */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--s-3)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--s-4)}
+.panel h3{font-size:13px;letter-spacing:.08em;margin-bottom:var(--s-3);color:var(--fg-strong)}
+.legend{display:flex;gap:var(--s-4);flex-wrap:wrap;font-size:12px;color:var(--fg-muted);align-items:center}
+.legend i{width:11px;height:11px;display:inline-block;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* ---------- Tabellen ---------- */
+.tablewrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface)}
+.tablewrap.tall{max-height:min(70vh,700px)}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+thead th{position:sticky;top:0;background:var(--surface);z-index:2;font-size:11px;font-weight:900;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);border-bottom:2px solid var(--fg-strong);
+  cursor:pointer;user-select:none}
+thead th:first-child{z-index:3}
+tbody tr:hover td{background:var(--bg-alt)}
+tbody tr:hover td:first-child{background:var(--bg-alt)}
+td.num{color:var(--fg-strong);font-weight:700}
+
+/* ---------- Diagramme ---------- */
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gridline{stroke:var(--grid);stroke-width:1}
+.axis{fill:var(--fg-muted);font-size:11px}
+.axis-strong{fill:var(--fg-strong);font-size:11px;font-weight:700}
+.mark-ist{fill:var(--s-ist)} .mark-ap{fill:var(--s-ap)} .mark-vj{fill:var(--s-vj)}
+.line-ist{fill:none;stroke:var(--s-ist);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.line-vj{fill:none;stroke:var(--s-vj);stroke-width:2;stroke-dasharray:5 4;stroke-linejoin:round}
+.line-ap{fill:none;stroke:var(--s-ap);stroke-width:2;stroke-dasharray:2 4;stroke-linejoin:round}
+.hit{fill:transparent;cursor:crosshair}
+.tip{position:fixed;pointer-events:none;z-index:60;background:var(--fg-strong);color:var(--bg);
+  padding:8px 10px;border-radius:var(--r-md);font-size:12px;line-height:1.45;box-shadow:var(--shadow-md);
+  opacity:0;transition:opacity 120ms var(--ease);max-width:280px;font-variant-numeric:tabular-nums}
+.tip.on{opacity:1}
+.tip b{color:#fff}
+:root[data-theme="dark"] .tip b,
+:root:not([data-theme="light"]) .tip b{color:#000}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .tip b{color:#fff}}
+
+/* ---------- Heatmap ---------- */
+.heat td{text-align:center;font-weight:700;color:var(--fg-strong);border:2px solid var(--surface);
+  border-radius:0;min-width:64px}
+.heat td.lbl{text-align:left;background:var(--surface)}
+
+/* ---------- Karten ---------- */
+.mapgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--s-3);align-items:start}
+.mapgrid.solo{grid-template-columns:1fr}
+@media (max-width:900px){.mapgrid{grid-template-columns:1fr}}
+.maptitle{font-size:13px;letter-spacing:.08em;margin-bottom:var(--s-3);color:var(--fg-strong)}
+path.geo{stroke:var(--surface);stroke-width:1.1;stroke-linejoin:round;cursor:pointer;
+  transition:fill var(--dur,160ms) var(--ease)}
+path.geo:hover{stroke:var(--fg-strong);stroke-width:1.8}
+path.geo.nd{cursor:default;fill:var(--bg-alt)}
+path.geo.sel{stroke:var(--s-ap);stroke-width:2.6}
+.maplegend{display:flex;align-items:center;gap:2px;row-gap:var(--s-3);margin-top:var(--s-4);flex-wrap:wrap;
+  font-size:11px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
+.maplegend .lg{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:56px}
+.maplegend .sw{width:100%;height:12px;display:block;border-radius:1px}
+.maplegend .cap{margin-right:var(--s-3);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+
+/* ---------- Hotelsuche ---------- */
+.hsearch{position:relative;max-width:560px;margin-bottom:var(--s-5)}
+.hsearch input{width:100%;font-family:inherit;font-size:16px;padding:11px 13px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface);color:var(--fg)}
+.hsearch input:focus{outline:2px solid var(--brand);outline-offset:1px}
+.hsearch ul{position:absolute;z-index:25;left:0;right:0;top:calc(100% + 4px);margin:0;padding:4px;
+  list-style:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+  box-shadow:var(--shadow-md);max-height:340px;overflow-y:auto}
+.hsearch li{padding:8px 10px;border-radius:var(--r-sm);cursor:pointer;display:flex;gap:var(--s-3);
+  align-items:baseline;font-size:14px}
+.hsearch li:hover,.hsearch li[aria-selected=true]{background:var(--bg-alt)}
+.hsearch li b{color:var(--fg-strong);font-weight:700}
+.hsearch li span{color:var(--fg-muted);font-size:12px;font-variant-numeric:tabular-nums;margin-left:auto;
+  white-space:nowrap}
+.hsearch li em{font-style:normal;background:var(--s-ap-soft);color:var(--fg-strong);
+  border-radius:2px;padding:0 1px}
+.hhead{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-4);
+  margin-bottom:var(--s-4);flex-wrap:wrap}
+.hhead h3{font-size:28px}
+.hgrid{display:grid;grid-template-columns:1.35fr 1fr;gap:var(--s-3);margin-top:var(--s-3)}
+@media (max-width:900px){.hgrid{grid-template-columns:1fr}}
+.badge{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 7px;border-radius:999px;background:var(--s-ap-soft);color:var(--fg-strong);margin-left:var(--s-2)}
+
+/* ---------- Ansichten ---------- */
+#viewSw{margin-right:var(--s-3)}
+body[data-view="reports"] .controls,
+body[data-view="reports"] .wrap > section:not(#s-reports):not(#s-defs){display:none}
+body:not([data-view="reports"]) #s-reports{display:none}
+
+/* ---------- Reports ---------- */
+.rp-bar{display:flex;gap:var(--s-4);flex-wrap:wrap;align-items:flex-end;margin:var(--s-6) 0 var(--s-5)}
+.rp-nav{display:flex;align-items:center;gap:var(--s-2);margin-bottom:var(--s-3);font-size:13px;color:var(--fg-muted)}
+#rpPos{min-width:90px;text-align:center;font-weight:700;color:var(--fg-strong)}
+#rpExit{display:none}
+body.presenting #rpExit{display:inline-block}
+body.presenting #rpStage{position:fixed;inset:0;z-index:80;overflow:auto;padding:var(--s-5) var(--s-6);background:var(--bg)}
+#rpStage:fullscreen{overflow:auto;padding:var(--s-5) var(--s-6);background:var(--bg)}
+body.presenting .rp-page{max-width:1640px;margin:0 auto}
+.rp-page{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--s-6);margin-bottom:var(--s-5)}
+.rp-head{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-5);
+  border-bottom:3px solid var(--fg-strong);padding-bottom:var(--s-3);margin-bottom:var(--s-5)}
+.rp-head h2{font-size:34px;margin-top:var(--s-1)}
+.rp-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12px;color:var(--fg-muted);text-align:right}
+.rp-meta b{font-size:17px;color:var(--fg-strong);text-transform:capitalize}
+.rgrid{display:grid;gap:var(--s-3)}
+.rgrid.g2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:980px){.rgrid.g2{grid-template-columns:1fr}}
+.rcard{border:1px solid var(--rule);border-radius:var(--r-lg);padding:var(--s-4);min-width:0}
+.rcard.span2{grid-column:1/-1}
+.rcard h4{font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--fg-strong);margin:0 0 var(--s-3)}
+.st{color:var(--s-ap);font-size:.95em}
+.rtw{border:0;background:transparent}
+table.rt{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+table.rt.cmp{font-size:12px}
+table.rt.cmp th,table.rt.cmp td{padding:5px 5px}
+table.rt th,table.rt td{padding:5px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--rule)}
+table.rt thead th{font-size:10.5px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted);
+  border-bottom:2px solid var(--fg-strong);position:static;cursor:default}
+table.rt th:first-child,table.rt td:first-child{position:static}
+table.rt th.rl{text-align:left;font-weight:700;color:var(--fg-strong);background:transparent}
+table.rt th.rs{text-align:right;font-weight:400;color:var(--fg-muted);font-size:11.5px;text-transform:none;letter-spacing:0}
+table.rt td.sm,table.rt th.sm{border-left:2px solid var(--fg-strong);font-weight:900}
+table.rt td.dl,table.rt td.tr{font-weight:700}
+table.rt td.pos{background:color-mix(in oklab,var(--pos) 24%,transparent);color:var(--fg-strong)}
+table.rt td.neg{background:color-mix(in oklab,var(--neg) 24%,transparent);color:var(--fg-strong)}
+table.rt tr.ap td,table.rt tr.ap th{color:var(--fg-muted)}
+table.rt tr.gap td{height:7px;border:0;padding:0}
+table.rt tr.sep td{text-align:left;font-size:10.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--s-ap);padding-top:var(--s-4);border-bottom:2px solid var(--s-ap)}
+table.rt td.vj{color:var(--fg-muted)}
+table.rt td.is{font-weight:700;color:var(--fg-strong)}
+table.rt th.grp{text-align:center;border-bottom:1px solid var(--rule)}
+table.rt td.empty{text-align:center;color:var(--fg-muted)}
+table.rt.split{table-layout:auto}
+table.rt.split thead th:first-child{text-align:left}
+table.rt.split th.rl{white-space:normal;min-width:120px;line-height:1.3}
+table.rt.split td{width:1%}
+table.rt tbody tr:hover td{background:inherit}
+table.rt tbody tr:hover td.pos{background:color-mix(in oklab,var(--pos) 24%,transparent)}
+table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,transparent)}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:900}
+.pill.pos{background:color-mix(in oklab,var(--pos) 26%,transparent);color:var(--fg-strong)}
+.pill.neg{background:color-mix(in oklab,var(--neg) 26%,transparent);color:var(--fg-strong)}
+.rtiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-2)}
+.rtile{border:1px solid var(--rule);border-radius:var(--r-md);padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rtile .k{font-size:10.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted)}
+.rtile .v{font-size:26px;font-weight:900;color:var(--fg-strong);line-height:1.15;font-variant-numeric:tabular-nums}
+.rtile .sub{font-size:11.5px;color:var(--fg-muted)}
+.rtile .sub .pos{color:var(--pos);font-weight:700} .rtile .sub .neg{color:var(--neg);font-weight:700}
+.rtile.ok{border-left:4px solid var(--pos)} .rtile.bad{border-left:4px solid var(--neg)}
+.rp-foot{display:flex;flex-wrap:wrap;gap:6px var(--s-5);margin-top:var(--s-4);padding-top:var(--s-2);
+  border-top:1px solid var(--rule);font-size:11.5px;color:var(--fg-muted)}
+#printArea{display:none}
+#rpToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;max-width:min(560px,calc(100vw - 32px));
+  padding:12px 16px;border-radius:var(--r-lg);background:var(--fg-strong);color:var(--bg);font-size:13.5px;line-height:1.45;
+  box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.rp-sheet + .rp-sheet{margin-top:var(--s-3)}
+.rp-mini{display:none}
+
+@media print{
+  :root,:root[data-theme="dark"]{
+    --bg:#fff;--bg-alt:#f7f7f7;--surface:#fff;--fg:#414141;--fg-strong:#000;--border:#d6d6d6;--rule:#e6e6e6;
+    --fg-muted:#6f6f6f;--s-ist:#0b7fa8;--s-ap:#7d9100;--s-vj:#6e7a80;--pos:#1c7c4a;--neg:#b4441a;--grid:#e6e6e6;
+    color-scheme:light }
+  @page{size:A4 landscape;margin:8mm}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff}
+  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast{display:none !important}
+  body:not(.printing) .wrap > section:not(#s-reports){display:none !important}
+  body.printing .wrap{display:none !important}
+  body.printing #printArea{display:block}
+  .wrap{max-width:none;padding:0}
+  .rp-page{border:0;border-radius:0;padding:0;margin:0;break-after:page;page-break-after:always}
+  .rp-page:last-child{break-after:auto;page-break-after:auto}
+  .rp-sheet + .rp-sheet{break-before:page;page-break-before:always;margin-top:0}
+  .rp-mini{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;
+    padding-bottom:4px;margin-bottom:10px;font-size:11px;color:#6f6f6f}
+  .rp-mini b{font-size:15px;color:#000;text-transform:uppercase;font-weight:900}
+  .rp-head{margin-bottom:10px;padding-bottom:6px}
+  .rp-head h2{font-size:24px}
+  .rp-meta b{font-size:14px}
+  .rgrid{gap:8px}
+  .rcard{break-inside:avoid;padding:8px 10px}
+  .rcard h4{margin-bottom:6px;font-size:10px}
+  .rgrid.g2{grid-template-columns:1fr 1fr}
+  .tablewrap,.rtw{overflow:visible !important;max-height:none !important}
+  table.rt{font-size:9px}
+  table.rt th,table.rt td{padding:2.5px 5px}
+  table.rt thead th{font-size:8px}
+  table.rt.cmp{font-size:8.2px}
+  table.rt.cmp th,table.rt.cmp td{padding:2px 3px}
+  table.rt.cmp th.rs{font-size:8px}
+  table.rt tr.gap td{height:3px}
+  table.rt tr.sep td{padding-top:6px}
+  .rtiles{gap:6px}
+  .rtile{padding:6px 8px}
+  .rtile .v{font-size:17px}
+  .rcard svg{max-height:150px}
+  .rp-foot{margin-top:6px;font-size:9px}
+}
+
+/* ---------- Hinweise ---------- */
+.note{font-size:13px;color:var(--fg-muted);border-left:3px solid var(--soc-grey);
+  padding:var(--s-2) 0 var(--s-2) var(--s-4);margin-top:var(--s-4)}
+details{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);padding:var(--s-4)}
+details summary{cursor:pointer;font-weight:900;text-transform:uppercase;font-size:13px;letter-spacing:.08em;
+  color:var(--fg-strong)}
+details[open] summary{margin-bottom:var(--s-4)}
+details dl{margin:0;display:grid;grid-template-columns:minmax(150px,220px) 1fr;gap:var(--s-2) var(--s-4);font-size:13px}
+details dt{font-weight:700;color:var(--fg-strong)}
+details dd{margin:0;color:var(--fg-muted)}
+footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;color:var(--fg-muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:640px){
+  header h1{font-size:28px}
+  .tile .v{font-size:22px}
+  details dl{grid-template-columns:1fr}
+}
+</style>
+
+<header>
+  <div class="bar"></div>
+  <div class="inner">
+    <div class="headrow">
+      <div>
+        <div class="eyebrow">SOCCA GROUP · <span data-i18n="app.sub"></span></div>
+        <h1>Sales Cockpit</h1>
+        <p id="coverage"></p>
+      </div>
+      <div class="presets">
+        <div class="presets" id="viewSw">
+          <button class="chip sm" data-v="cockpit" data-i18n="view.cockpit" aria-pressed="true"></button>
+          <button class="chip sm" data-v="reports" data-i18n="view.reports" aria-pressed="false"></button>
+        </div>
+        <label class="sr" for="langSel" data-i18n="lang.label"></label>
+        <select id="langSel"></select>
+        <button class="chip sm" id="themeBtn" aria-pressed="false"></button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="inner">
+    <div class="field">
+      <label for="from" data-i18n="ctl.from"></label>
+      <input type="date" id="from">
+    </div>
+    <div class="field">
+      <label for="to" data-i18n="ctl.to"></label>
+      <input type="date" id="to">
+    </div>
+    <div class="field">
+      <label data-i18n="ctl.presets"></label>
+      <div class="presets" id="presets"></div>
+    </div>
+    <div class="field">
+      <label for="grp" data-i18n="ctl.area"></label>
+      <select id="grp"></select>
+    </div>
+    <div class="field">
+      <label for="team" data-i18n="ctl.team"></label>
+      <select id="team"></select>
+    </div>
+    <div class="field">
+      <label for="dest" data-i18n="ctl.dest"></label>
+      <select id="dest"></select>
+    </div>
+    <div class="field">
+      <label for="herk" data-i18n="ctl.herk"></label>
+      <select id="herk"></select>
+    </div>
+    <div class="field">
+      <label for="region" data-i18n="ctl.region"></label>
+      <select id="region"></select>
+    </div>
+    <div class="spacer"></div>
+    <div class="field">
+      <label data-i18n="ctl.compare"></label>
+      <div class="presets">
+        <button class="chip sm" id="cmpVJ" aria-pressed="true" data-i18n="ctl.py"></button>
+        <button class="chip sm" id="cmpAP" aria-pressed="true" data-i18n="ctl.ap"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section id="s-funnel">
+    <div class="shead">
+      <h2 data-i18n="s.funnel"></h2>
+      <span class="hint" id="funnelHint"></span>
+    </div>
+    <div class="tiles" id="funnelTiles"></div>
+    <div class="note" id="leadNote"></div>
+  </section>
+
+  <section id="s-kpi">
+    <div class="shead">
+      <h2 data-i18n="s.kpi"></h2>
+      <span class="hint" id="kpiHint"></span>
+    </div>
+    <div class="tiles" id="kpiTiles"></div>
+  </section>
+
+  <section id="s-map">
+    <div class="shead">
+      <h2 data-i18n="s.map"></h2>
+      <span class="hint" id="mapHint"></span>
+      <div class="spacer"></div>
+      <div class="presets">
+        <button class="chip sm" id="mapDest" aria-pressed="true" data-i18n="ctl.dest"></button>
+        <button class="chip sm" id="mapHerk" aria-pressed="false" data-i18n="ctl.herk"></button>
+      </div>
+      <label class="sr" for="mapMetric" data-i18n="ho.metric"></label>
+      <select id="mapMetric"></select>
+    </div>
+    <div class="mapgrid solo" id="mapGrid">
+      <div class="card">
+        <h3 class="maptitle" id="mapTitleEU"></h3>
+        <div id="mapEU"></div>
+        <div class="maplegend" id="mapLegEU"></div>
+      </div>
+      <div class="card" id="mapDachCard" hidden>
+        <h3 class="maptitle" data-i18n="mp.titleDach"></h3>
+        <div id="mapDACH"></div>
+        <div class="maplegend" id="mapLegDACH"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-compare">
+    <div class="shead">
+      <h2 data-i18n="s.cmp"></h2>
+      <span class="hint" data-i18n="h.cmp"></span>
+    </div>
+    <div class="legend" style="margin-bottom:var(--s-4)">
+      <span><i style="background:var(--s-vj)"></i><span data-i18n="ctl.py"></span></span>
+      <span><i style="background:var(--s-ap)"></i><span data-i18n="ctl.ap"></span></span>
+      <span><i style="background:var(--s-ist)"></i><span data-i18n="pn.ist"></span></span>
+    </div>
+    <div class="panels" id="cmpPanels"></div>
+  </section>
+
+  <section id="s-hotel">
+    <div class="shead">
+      <h2 data-i18n="s.hotel"></h2>
+      <span class="hint" data-i18n="h.hotel"></span>
+    </div>
+
+    <div class="hsearch">
+      <label class="sr" for="hotelQ" data-i18n="ho.searchLabel"></label>
+      <input type="search" id="hotelQ" data-i18n-ph="ho.ph"
+             autocomplete="off" spellcheck="false">
+      <ul id="hotelHits" role="listbox" hidden></ul>
+    </div>
+
+    <div id="hotelBody" hidden>
+      <div class="hhead">
+        <div>
+          <div class="eyebrow" id="hotelMeta"></div>
+          <h3 id="hotelName"></h3>
+        </div>
+        <button class="chip sm" id="hotelClear" data-i18n="ho.clear"></button>
+      </div>
+      <div class="tiles" id="hotelTiles"></div>
+      <div class="hgrid">
+        <div class="card">
+          <div class="shead" style="border-bottom-width:1px;margin-bottom:var(--s-4)">
+            <h3 style="font-size:13px;letter-spacing:.08em" data-i18n="ho.monthly"></h3>
+            <div class="spacer"></div>
+            <label class="sr" for="hotelMetric" data-i18n="ho.metric"></label>
+            <select id="hotelMetric"></select>
+          </div>
+          <div id="hotelChart"></div>
+        </div>
+        <div class="card">
+          <div class="shead" style="border-bottom-width:1px;margin-bottom:var(--s-4)">
+            <h3 style="font-size:13px;letter-spacing:.08em" data-i18n="ho.whoSells"></h3>
+          </div>
+          <div class="tablewrap" style="border:0"><table id="hotelTeams"></table></div>
+        </div>
+      </div>
+    </div>
+    <p class="note" id="hotelEmpty" data-i18n="ho.empty"></p>
+
+    <div class="shead" style="margin-top:var(--s-6)">
+      <h3 style="font-size:16px" data-i18n="ho.rank"></h3>
+      <span class="hint" id="topHint"></span>
+      <div class="spacer"></div>
+      <label class="sr" for="topMetric" data-i18n="ho.sortBy"></label>
+      <select id="topMetric"></select>
+    </div>
+    <div class="tablewrap tall"><table id="topHotels"></table></div>
+  </section>
+
+  <section id="s-trend">
+    <div class="shead">
+      <h2 data-i18n="s.trend"></h2>
+      <span class="hint" data-i18n="h.trend"></span>
+      <div class="spacer"></div>
+      <div class="field">
+        <label class="sr" for="trendMetric" data-i18n="ho.metric"></label>
+        <select id="trendMetric"></select>
+      </div>
+    </div>
+    <div class="card">
+      <div id="trendChart"></div>
+      <div class="legend" style="margin-top:var(--s-4)" id="trendLegend"></div>
+    </div>
+  </section>
+
+  <section id="s-teams">
+    <div class="shead">
+      <h2 data-i18n="s.teams"></h2>
+      <span class="hint" data-i18n="h.teams"></span>
+      <div class="spacer"></div>
+      <div class="field">
+        <label class="sr" for="teamMetric" data-i18n="ho.metric"></label>
+        <select id="teamMetric"></select>
+      </div>
+    </div>
+    <div class="card"><div id="teamChart"></div></div>
+  </section>
+
+  <section id="s-heat">
+    <div class="shead">
+      <h2 data-i18n="s.heat"></h2>
+      <span class="hint" data-i18n="h.heat"></span>
+    </div>
+    <div class="tablewrap tall"><table class="heat" id="heatTable"></table></div>
+    <div class="legend" style="margin-top:var(--s-3)">
+      <span><i style="background:#b4441a"></i><span data-i18n="hl.bad"></span></span>
+      <span><i style="background:var(--rule)"></i><span data-i18n="hl.flat"></span></span>
+      <span><i style="background:#1c7c4a"></i><span data-i18n="hl.good"></span></span>
+    </div>
+  </section>
+
+  <section id="s-table">
+    <div class="shead">
+      <h2 data-i18n="s.table"></h2>
+      <span class="hint" data-i18n="h.table"></span>
+      <div class="spacer"></div>
+      <button class="chip sm" id="copyBtn" data-i18n="tb.copy"></button>
+    </div>
+    <div class="tablewrap tall"><table id="dataTable"></table></div>
+  </section>
+
+  <section id="s-reports">
+    <div class="rp-bar">
+      <div class="presets" id="rpKind">
+        <button class="chip" data-k="cmp" data-i18n="rp.cmp"></button>
+        <button class="chip" data-k="tsr" data-i18n="rp.tsr"></button>
+        <button class="chip" data-k="csr" data-i18n="rp.csr"></button>
+      </div>
+      <div class="field"><label for="rpMonth" data-i18n="rp.month"></label><select id="rpMonth"></select></div>
+      <div class="field"><label for="rpKey" id="rpKeyLab"></label><select id="rpKey"></select></div>
+      <div class="spacer"></div>
+      <button class="chip" id="rpPresent" data-i18n="rp.present"></button>
+      <button class="chip" id="rpPrint" data-i18n="rp.print"></button>
+      <button class="chip" id="rpPrintAll" data-i18n="rp.printAll"></button>
+    </div>
+    <div id="rpStage">
+      <div class="rp-nav">
+        <button class="chip sm" id="rpPrev" aria-label="←">←</button>
+        <span id="rpPos"></span>
+        <button class="chip sm" id="rpNext" aria-label="→">→</button>
+        <span class="spacer"></span>
+        <button class="chip sm" id="rpExit" data-i18n="rp.exit"></button>
+      </div>
+      <div id="rpCanvas"></div>
+    </div>
+  </section>
+
+  <section id="s-defs">
+    <details>
+      <summary data-i18n="s.defs"></summary>
+      <dl id="defs"></dl>
+    </details>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+<div id="printArea"></div>
+
+<script>
+/*__GEO__*/
+/*__I18N__*/
+function start(D){
+
+/* ============================ Sprache ============================ */
+const LOCALE = {de:'de-DE', nl:'nl-NL', es:'es-ES', it:'it-IT', hr:'hr-HR',
+                cs:'cs-CZ', nb:'nb-NO', tr:'tr-TR', hu:'hu-HU'};
+/* Das Blatt Sales schreibt D, A und I, die Anzeige braucht ISO-2. */
+const ISO2 = {D:'DE', A:'AT', I:'IT'};
+
+function pickLang(){
+  try{ const v=localStorage.getItem('socca.lang'); if(v && I18N[v]) return v; }catch(e){}
+  for(const l of (navigator.languages||[navigator.language||''])){
+    const c=String(l).slice(0,2).toLowerCase();
+    if(I18N[c]) return c;
+    if(c==='no'||c==='nn') return 'nb';
+  }
+  return 'de';
+}
+let LANG = pickLang();
+let LOC  = LOCALE[LANG];
+
+function t(key, vars){
+  let v = (I18N[LANG] && I18N[LANG][key]) || I18N.de[key] || key;
+  if(vars) for(const k in vars) v = v.split('{'+k+'}').join(vars[k]);
+  return v;
+}
+
+let MONTHS = [];
+let REGION_NAME = null;
+function buildLocale(){
+  LOC = LOCALE[LANG] || 'de-DE';
+  document.documentElement.lang = LANG;
+  const f = new Intl.DateTimeFormat(LOC, {month:'short', timeZone:'UTC'});
+  MONTHS = Array.from({length:12}, (_,i)=> f.format(Date.UTC(2021, i, 15))
+                                            .replace(/\.$/,''));
+  try{ REGION_NAME = new Intl.DisplayNames([LOC], {type:'region'}); }
+  catch(e){ REGION_NAME = null; }
+  /* Kennzahl- und Gruppennamen hängen an der Sprache. */
+  for(const m of M){ m.n = t(m.k); m.g = t(m.gk); }
+}
+/* Ländername in der gewählten Sprache; unbekannte Codes bleiben stehen. */
+function cname(code){
+  const iso = ISO2[code] || code;
+  if(REGION_NAME && /^[A-Z]{2}$/.test(iso)){
+    try{ const n=REGION_NAME.of(iso); if(n && n!==iso) return n+' ('+code+')'; }catch(e){}
+  }
+  return code;
+}
+function applyLabels(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  const dark = document.documentElement.getAttribute('data-theme')==='dark';
+  document.getElementById('themeBtn').textContent = dark ? t('theme.light') : t('theme.dark');
+}
+
+/* ============================ Grundlagen ============================ */
+const DAY0 = Date.UTC(2019,0,1);
+const d2i = d => Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()) - DAY0)/864e5);
+const i2d = i => new Date(DAY0 + i*864e5);
+const mIdx = d => (d.getUTCFullYear()-2019)*12 + d.getUTCMonth();
+const mIdxLocal = d => (d.getFullYear()-2019)*12 + d.getMonth();
+const mStart = m => new Date(Date.UTC(2019 + Math.floor(m/12), m%12, 1));
+const iso = d => d.toISOString().slice(0,10);
+
+const maxDay = D.bookings.reduce((a,b)=>Math.max(a,b[0]),0);
+const minDay = D.bookings.reduce((a,b)=>Math.min(a,b[0]),1e9);
+const LAST = i2d(maxDay), FIRST = i2d(minDay);
+const LEAD_CUT_M = (2024-2019)*12;                       // ab hier tagesgenaue Leads
+
+/* Teams nach Bereich gruppieren */
+const GROUPS = [
+  {id:'all',  k:'all.areas', test:()=>true},
+  {id:'futl', k:'grp.futl',  test:c=>c.startsWith('FU') && c!=='FUTU'},
+  {id:'futu', k:'grp.futu',  test:c=>c==='FUTU'},
+  {id:'teca', k:'grp.teca',  test:c=>c==='TECA'},
+  {id:'swim', k:'grp.swim',  test:c=>c==='SWIM'},
+  {id:'latr', k:'grp.latr',  test:c=>c==='LATR'},
+  {id:'haba', k:'grp.haba',  test:c=>c==='HABA'},
+];
+
+/* ============================ Kennzahlen ============================ */
+/* base: Rohsummen. Jede Kennzahl weiß, wie sie daraus entsteht. */
+const M = [
+  {id:'leads',               k:'m.leads', gk:'g.funnel', f:b=>b.leads,               d:0, ap:false, nl:true},
+  {id:'props',               k:'m.props', gk:'g.funnel', f:b=>b.props,               d:0, ap:false, nl:true},
+  {id:'teams',                  k:'m.teams', gk:'g.funnel', f:b=>b.teams,               d:0, ap:true },
+  {id:'book',               k:'m.book', gk:'g.funnel', f:b=>b.book,                d:0, ap:false},
+  {id:'vk',                    k:'m.vk', gk:'g.value',   f:b=>b.vk,                  d:0, ap:false, cur:true},
+  {id:'ek',                   k:'m.ek', gk:'g.value',   f:b=>b.ek,                  d:0, ap:false, cur:true},
+  {id:'db',           k:'m.db', gk:'g.value',   f:b=>b.db,                  d:0, ap:false, cur:true},
+  {id:'ros',                      k:'m.ros', gk:'g.value',   f:b=>b.vk? b.db/b.vk :null, d:1, pct:true},
+  {id:'pax',                      k:'m.pax', gk:'g.volume',f:b=>b.pax,                 d:0},
+  {id:'nights',        k:'m.nights', gk:'g.volume',f:b=>b.paxn,                d:0},
+  {id:'anights',             k:'m.anights', gk:'g.volume',f:b=>b.book? b.nights/b.book:null, d:2},
+  {id:'apax',           k:'m.apax', gk:'g.volume',f:b=>b.book? b.pax/b.book  :null, d:1},
+  {id:'quote1',   k:'m.quote1', gk:'g.rates', f:b=>b.leads? b.props/b.leads:null, d:2, fac:true, nl:true},
+  {id:'quote2',          k:'m.quote2', gk:'g.rates', f:b=>b.leads? b.book/b.leads :null, d:1, pct:true, nl:true},
+  {id:'quote3',        k:'m.quote3', gk:'g.rates', f:b=>b.props? b.book/b.props:null, d:1, pct:true, nl:true},
+  {id:'webq',     k:'m.webq', gk:'g.rates', f:b=>b.leads? b.web/b.leads :null, d:1, pct:true, nl:true},
+  {id:'web',             k:'m.web', gk:'g.rates', f:b=>b.web,                 d:0, nl:true},
+  {id:'uteam',         k:'m.uteam', gk:'g.unit',f:b=>b.teams? b.vk/b.teams:null, d:0, cur:true},
+  {id:'dbteam',            k:'m.dbteam', gk:'g.unit',f:b=>b.teams? b.db/b.teams:null, d:0, cur:true},
+  {id:'ubook',      k:'m.ubook', gk:'g.unit',f:b=>b.book? b.vk/b.book :null, d:0, cur:true},
+  {id:'dbbook',         k:'m.dbbook', gk:'g.unit',f:b=>b.book? b.db/b.book :null, d:0, cur:true},
+  {id:'mpn',          k:'m.mpn', gk:'g.unit',f:b=>(b.book&&b.teams)? b.db/((b.pax/b.book)*(b.nights/b.book)*b.teams) :null, d:2, cur:true},
+  {id:'fte',                      k:'m.fte', gk:'g.fte',    f:b=>b.fte,                 d:2, nf:true},
+  {id:'leadfte',      k:'m.leadfte', gk:'g.fte',    f:b=>b.fte? b.leads/b.fte  :null, d:1, nl:true, nf:true},
+  {id:'bookfte',     k:'m.bookfte', gk:'g.fte',    f:b=>b.fte? b.book/b.fte   :null, d:1, nf:true},
+  {id:'teamfte',         k:'m.teamfte', gk:'g.fte',    f:b=>b.fte? b.teams/b.fte  :null, d:1, nf:true},
+  {id:'vkfte',          k:'m.vkfte', gk:'g.fte',    f:b=>b.fte? b.vk/b.fte     :null, d:0, cur:true, nf:true},
+  {id:'dbfte',              k:'m.dbfte', gk:'g.fte',    f:b=>b.fte? b.db/b.fte     :null, d:0, cur:true, nf:true},
+];
+const MBY = Object.fromEntries(M.map(m=>[m.id,m]));
+M.forEach(m=>{ m.n=m.k; m.g=m.gk; });
+
+/* ============================ Aggregation ============================ */
+function emptyBase(){return {book:0,teams:0,pax:0,nights:0,paxn:0,vk:0,ek:0,db:0,
+                             leads:0,props:0,web:0,fte:0,apTeams:0,leadPartial:false};}
+
+function aggregate(from,to,teamSet){
+  const b = emptyBase();
+  for(const r of D.bookings){
+    if(r[0]<from || r[0]>to) continue;
+    const tm = D.teams[r[1]];
+    if(!teamSet.has(tm)) continue;
+    if(!bookOK(r)) continue;
+    b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
+    b.teams+=r[8]; b.pax+=r[9]; b.nights+=r[10]; b.paxn+=r[9]*r[10];
+  }
+  /* Leads: tagesgenau ab 2024, davor monatlich aus der Mappe */
+  b.leadNA = !leadDimOK();
+  b.dimFiltered = dimActive();
+  if(!b.leadNA){
+    for(const r of D.leadDaily){
+      if(r[0]<from || r[0]>to) continue;
+      if(!teamSet.has(D.teams[r[1]])) continue;
+      if(!leadOK(r)) continue;
+      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6];
+    }
+  }
+  const mFrom = mIdx(i2d(from)), mTo = mIdx(i2d(to));
+  const fullFrom = i2d(from).getUTCDate()===1 ? mFrom : mFrom+1;
+  const toD = i2d(to);
+  const lastOfMonth = new Date(Date.UTC(toD.getUTCFullYear(), toD.getUTCMonth()+1, 0)).getUTCDate();
+  const fullTo = toD.getUTCDate()===lastOfMonth ? mTo : mTo-1;
+  let histMonths=0, partial=false;
+  if(b.leadNA || dimActive()){
+    b.leadHistSkipped = mFrom < (D.meta.leadCutMonth ?? 60);
+    b.leadPartial=false; b.leadHistUsed=false;
+  } else {
+  for(const r of D.leadMonthly){
+    if(r[0]>=LEAD_CUT_M) continue;
+    if(r[0]<mFrom || r[0]>mTo) continue;
+    if(!teamSet.has(D.teams[r[1]])) continue;
+    if(r[0]<fullFrom || r[0]>fullTo){ partial=true; continue; }
+    b.leads+=r[2]; histMonths++;
+  }
+  for(const r of D.propMonthly){
+    if(r[0]>=LEAD_CUT_M) continue;
+    if(r[0]<fullFrom || r[0]>fullTo) continue;
+    if(!teamSet.has(D.teams[r[1]])) continue;
+    b.props+=r[2];
+  }
+  b.leadPartial = partial;
+  b.leadHistUsed = histMonths>0;
+  }
+  /* FTE: Mittel über die berührten Monate */
+  let fteSum=0, fteN=0;
+  const perMonth = new Map();
+  for(const r of D.fte){
+    if(r[0]<mFrom || r[0]>mTo) continue;
+    if(!teamSet.has(D.teams[r[1]])) continue;
+    perMonth.set(r[0], (perMonth.get(r[0])||0) + r[2]);
+  }
+  for(const v of perMonth.values()){ fteSum+=v; fteN++; }
+  b.fte = fteN ? fteSum/fteN : 0;
+  /* Annual Planning: Summe der berührten Monate */
+  for(const r of D.ap){
+    if(r[0]<mFrom || r[0]>mTo) continue;
+    if(!teamSet.has(D.teams[r[1]])) continue;
+    b.apTeams += r[2];
+  }
+  return b;
+}
+
+function metricVal(id, base){
+  if(MBY[id].nl && base.leadNA) return null;
+  /* FTE und Annual Planning liegen nur je Team vor, nicht je Land oder
+     Region. Bei gesetztem Dimensionsfilter waeren sie irrefuehrend. */
+  if(MBY[id].nf && base.dimFiltered) return null;
+  if(id==='teams' && base.__ap) return base.apTeams;
+  const v = MBY[id].f(base);
+  return (v===null || v===undefined || !isFinite(v)) ? null : v;
+}
+function apVal(id, base){
+  if(base.dimFiltered) return null;
+  return id==='teams' ? (base.apTeams||null) : null;
+}
+
+/* ============================ Formatierung ============================ */
+const nf = (v,d)=> v===null||v===undefined||!isFinite(v) ? '—'
+  : v.toLocaleString(LOC,{minimumFractionDigits:d,maximumFractionDigits:d});
+function fmt(id,v){
+  if(v===null||v===undefined||!isFinite(v)) return '—';
+  const m = MBY[id];
+  if(m.pct) return nf(v*100, m.d)+' %';
+  if(m.fac) return nf(v, m.d)+' ×';
+  if(m.cur){
+    if(Math.abs(v)>=1e6) return nf(v/1e6,2)+' '+t('u.mio');
+    if(Math.abs(v)>=1e4) return nf(v/1e3,0)+' '+t('u.tsd');
+    return nf(v,m.d)+' €';
+  }
+  return nf(v,m.d);
+}
+function fmtFull(id,v){
+  if(v===null||v===undefined||!isFinite(v)) return '—';
+  const m = MBY[id];
+  if(m.pct) return nf(v*100,1)+' %';
+  if(m.fac) return nf(v,2)+' ×';
+  return nf(v, m.cur?2:m.d) + (m.cur?' €':'');
+}
+function deltaHTML(cur,ref){
+  if(cur===null||ref===null||!isFinite(cur)||!isFinite(ref)||ref===0) return '';
+  const p=(cur-ref)/Math.abs(ref);
+  const cls = Math.abs(p)<0.005 ? 'flat' : (p>0?'up':'down');
+  const sign = p>0?'+':'';
+  return `<span class="delta ${cls}">${sign}${nf(p*100,1)} %</span>`;
+}
+
+/* ============================ Zustand ============================ */
+const state = {
+  from: null, to: null, group:'all', team:'', vj:true, ap:true,
+  trend:'db', teamMetric:'db', sort:{col:'db',dir:-1}, preset:'12m',
+  hotel:null, hotelMetric:'book', topMetric:'db',
+  dest:'', herk:'', region:'',
+  mapMode:'dest', mapMetric:'db'
+};
+
+/* Aktive Dimensionsfilter. Region schliesst Anfragen und Angebote aus,
+   weil Combit kein Bundesland fuehrt. */
+function dimActive(){ return !!(state.dest || state.herk || state.region); }
+function leadDimOK(){ return !state.region; }
+function bookOK(r){
+  if(state.dest   && D.dests[r[12]] !== state.dest) return false;
+  if(state.herk   && D.regs[r[3]]   !== state.herk) return false;
+  if(state.region && String(r[11])  !== state.region) return false;
+  return true;
+}
+function leadOK(r){
+  if(state.dest && D.dests[r[3]] !== state.dest) return false;
+  if(state.herk && D.regs[r[2]]  !== state.herk) return false;
+  return true;
+}
+
+function teamSet(){
+  const g = GROUPS.find(x=>x.id===state.group);
+  return new Set(D.teams.filter(t => g.test(t) && (!state.team || t===state.team)));
+}
+function shiftYear(d,n){ return new Date(d.getFullYear()-n, d.getMonth(), d.getDate()); }
+
+/* ============================ Aufbau UI ============================ */
+function initControls(){
+  const box = document.getElementById('presets');
+  box.innerHTML = ['1m','3m','12m','gj','kj','all']
+    .map(id=>`<button class="chip sm" data-p="${id}" data-i18n="p.${id}"></button>`).join('');
+  box.addEventListener('click',e=>{
+    const b=e.target.closest('[data-p]'); if(!b) return;
+    applyPreset(b.dataset.p); render();
+  });
+
+  const g=document.getElementById('grp');
+  g.innerHTML = GROUPS.map(x=>`<option value="${x.id}">${t(x.k)}</option>`).join('');
+  g.onchange = ()=>{ state.group=g.value; fillTeams(); render(); };
+  fillTeams();
+  document.getElementById('team').onchange = e => { state.team=e.target.value; render(); };
+
+  const de=document.getElementById('dest'), hk=document.getElementById('herk'),
+        rg=document.getElementById('region');
+  de.innerHTML = `<option value="">${t('all.dests')}</option>`+
+    D.dests.map(c=>`<option value="${c}">${cname(c)}</option>`).join('');
+  hk.innerHTML = `<option value="">${t('all.herks')}</option>`+
+    D.regs.map(c=>`<option value="${c}">${cname(c)}</option>`).join('');
+  de.onchange=()=>{ state.dest=de.value; render(); };
+  hk.onchange=()=>{ state.herk=hk.value; state.region=''; fillRegions(); render(); };
+  rg.onchange=()=>{ state.region=rg.value; render(); };
+  fillRegions();
+
+  document.getElementById('from').onchange = e => { state.from=new Date(e.target.value); state.preset=null; render(); };
+  document.getElementById('to').onchange   = e => { state.to  =new Date(e.target.value); state.preset=null; render(); };
+
+  const tv=document.getElementById('cmpVJ'), ta=document.getElementById('cmpAP');
+  tv.onclick=()=>{state.vj=!state.vj; render();};
+  ta.onclick=()=>{state.ap=!state.ap; render();};
+
+  const sel = (el,group)=>{
+    el.innerHTML = [...new Set(M.map(m=>m.g))].map(gr =>
+      `<optgroup label="${gr}">`+M.filter(m=>m.g===gr).map(m=>`<option value="${m.id}">${m.n}</option>`).join('')+`</optgroup>`
+    ).join('');
+  };
+  const tm=document.getElementById('trendMetric'), km=document.getElementById('teamMetric');
+  sel(tm); sel(km);
+  tm.value=state.trend; km.value=state.teamMetric;
+  tm.onchange=()=>{state.trend=tm.value; renderTrend();};
+  km.onchange=()=>{state.teamMetric=km.value; renderTeams();};
+
+  const mm=document.getElementById('mapMetric');
+  mm.innerHTML = [...new Set(MAP_M.map(id=>MBY[id].g))].map(gr =>
+    `<optgroup label="${gr}">`+MAP_M.filter(id=>MBY[id].g===gr)
+      .map(id=>`<option value="${id}">${MBY[id].n}</option>`).join('')+`</optgroup>`).join('');
+  mm.value=state.mapMetric;
+  mm.onchange=()=>{ state.mapMetric=mm.value; renderMaps(); };
+  document.getElementById('mapDest').onclick=()=>{ state.mapMode='dest'; render(); };
+  document.getElementById('mapHerk').onclick=()=>{ state.mapMode='herk'; render(); };
+
+  const ls=document.getElementById('langSel');
+  ls.innerHTML = LANGS.map(([c,n])=>`<option value="${c}">${n}</option>`).join('');
+  ls.value = LANG;
+  ls.onchange = ()=>{
+    LANG = ls.value;
+    try{ localStorage.setItem('socca.lang', LANG); }catch(e){}
+    buildLocale();
+    rebuildUI();
+    render();
+  };
+
+  const th=document.getElementById('themeBtn');
+  th.onclick=()=>{
+    const dark = document.documentElement.getAttribute('data-theme')==='dark';
+    document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+    th.setAttribute('aria-pressed', String(!dark));
+    applyLabels();
+    render();
+    if(STATE_VIEW==='reports') drawReport();
+  };
+  document.getElementById('copyBtn').onclick = copyTable;
+}
+function fillRegions(){
+  const rg=document.getElementById('region');
+  const list=D.regions.map((r,i)=>({i,land:r[0],label:r[2]}))
+    .filter(r=>!state.herk || r.land===state.herk);
+  let html=`<option value="">${t('all.regions')}</option>`;
+  if(state.herk){
+    html+=list.map(r=>`<option value="${r.i}">${r.label}</option>`).join('');
+  } else {
+    let last=null;
+    for(const r of list){
+      if(r.land!==last){ if(last!==null) html+='</optgroup>';
+        html+=`<optgroup label="${cname(r.land)}">`; last=r.land; }
+      html+=`<option value="${r.i}">${r.label}</option>`;
+    }
+    if(last!==null) html+='</optgroup>';
+  }
+  rg.innerHTML=html;
+  if(state.region && !list.some(r=>String(r.i)===state.region)) state.region='';
+  rg.value=state.region;
+}
+
+function fillTeams(){
+  const g=GROUPS.find(x=>x.id===state.group);
+  const list=D.teams.filter(c=>g.test(c));
+  const el=document.getElementById('team');
+  el.innerHTML = `<option value="">${t('all.teams')}</option>`+list.map(x=>`<option value="${x}">${x}</option>`).join('');
+  if(state.team && !list.includes(state.team)) state.team='';
+  el.value=state.team;
+}
+function applyPreset(p){
+  state.preset=p;
+  const end = LAST;
+  let start;
+  if(p==='1m') start=new Date(end.getFullYear(),end.getMonth(),1);
+  else if(p==='3m'){ start=new Date(end.getFullYear(),end.getMonth()-2,1); }
+  else if(p==='12m'){ start=new Date(end.getFullYear(),end.getMonth()-11,1); }
+  else if(p==='gj'){ const y=end.getMonth()>=6?end.getFullYear():end.getFullYear()-1; start=new Date(y,6,1); }
+  else if(p==='kj') start=new Date(end.getFullYear(),0,1);
+  else start=FIRST;
+  state.from=start; state.to=end;
+  document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===p)));
+}
+
+/* Sprachwechsel: alles neu beschriften und die Auswahllisten neu
+   aufbauen, ohne die getroffene Auswahl zu verlieren. */
+function rebuildUI(){
+  const keep = {grp:state.group, team:state.team, dest:state.dest, herk:state.herk,
+                region:state.region, trendMetric:state.trend, teamMetric:state.teamMetric,
+                hotelMetric:state.hotelMetric, topMetric:state.topMetric,
+                mapMetric:state.mapMetric};
+  const g=document.getElementById('grp');
+  g.innerHTML = GROUPS.map(x=>`<option value="${x.id}">${t(x.k)}</option>`).join('');
+  g.value = keep.grp;
+  fillTeams();
+  const de=document.getElementById('dest'), hk=document.getElementById('herk');
+  de.innerHTML = `<option value="">${t('all.dests')}</option>`+
+    D.dests.map(c=>`<option value="${c}">${cname(c)}</option>`).join('');
+  hk.innerHTML = `<option value="">${t('all.herks')}</option>`+
+    D.regs.map(c=>`<option value="${c}">${cname(c)}</option>`).join('');
+  de.value=keep.dest; hk.value=keep.herk;
+  fillRegions();
+  const metricSel = (el, ids)=>{
+    const v = el.value;
+    el.innerHTML = [...new Set(ids.map(id=>MBY[id].g))].map(gr =>
+      `<optgroup label="${gr}">`+ids.filter(id=>MBY[id].g===gr)
+        .map(id=>`<option value="${id}">${MBY[id].n}</option>`).join('')+`</optgroup>`).join('');
+    el.value = v;
+  };
+  const allIds = M.map(m=>m.id);
+  metricSel(document.getElementById('trendMetric'), allIds);
+  metricSel(document.getElementById('teamMetric'), allIds);
+  metricSel(document.getElementById('hotelMetric'), HOTEL_M);
+  metricSel(document.getElementById('topMetric'), HOTEL_M);
+  metricSel(document.getElementById('mapMetric'), MAP_M);
+  document.getElementById('trendMetric').value=keep.trendMetric;
+  document.getElementById('teamMetric').value=keep.teamMetric;
+  document.getElementById('hotelMetric').value=keep.hotelMetric;
+  document.getElementById('topMetric').value=keep.topMetric;
+  document.getElementById('mapMetric').value=keep.mapMetric;
+  applyLabels();
+  syncCtrlHeight();
+  if(typeof RS!=='undefined' && RS.refreshSelects){ RS.refreshSelects(); drawReport(); }
+}
+
+/* ============================ Rendern ============================ */
+let CUR, VJ, TS;
+function render(){
+  document.getElementById('from').value = iso(state.from);
+  document.getElementById('to').value   = iso(state.to);
+  document.getElementById('dest').value=state.dest;
+  document.getElementById('herk').value=state.herk;
+  document.getElementById('region').value=state.region;
+  document.getElementById('cmpVJ').setAttribute('aria-pressed',String(state.vj));
+  document.getElementById('cmpAP').setAttribute('aria-pressed',String(state.ap));
+  document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===state.preset)));
+
+  TS = teamSet();
+  const f=d2i(state.from), to=d2i(state.to);
+  CUR = aggregate(f,to,TS);
+  VJ  = aggregate(d2i(shiftYear(state.from,1)), d2i(shiftYear(state.to,1)), TS);
+
+  document.getElementById('mapDest').setAttribute('aria-pressed',String(state.mapMode==='dest'));
+  document.getElementById('mapHerk').setAttribute('aria-pressed',String(state.mapMode==='herk'));
+  renderCoverage(); renderFunnel(); renderKPI(); renderMaps(); renderPanels();
+  renderHotelDetail(); renderTopHotels();
+  renderTrend(); renderTeams(); renderHeat(); renderTable(); renderDefs();
+}
+
+function renderCoverage(){
+  const fmtD=d=>d.toLocaleDateString(LOC,{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('coverage').textContent = t('cv.line',{
+    n: D.bookings.length.toLocaleString(LOC),
+    von: fmtD(FIRST), bis: fmtD(LAST),
+    t: D.teams.length,
+    stand: fmtD(new Date(D.meta.generated)),
+  });
+  document.getElementById('foot').textContent = t('ft.line',{
+    wb: D.meta.sources.workbook, cb: D.meta.sources.combit,
+    gen: new Date(D.meta.generated).toLocaleString(LOC),
+  });
+}
+
+function tile(id,{funnel=false}={}){
+  const v = metricVal(id,CUR);
+  const r = state.vj ? metricVal(id,VJ) : null;
+  const a = state.ap ? apVal(id,CUR) : null;
+  const subs=[];
+  if(r!==null) subs.push(`<span>${t('t.py')} ${fmt(id,r)} ${deltaHTML(v,r)}</span>`);
+  if(a!==null) subs.push(`<span>${t('t.ap')} ${fmt(id,a)} ${deltaHTML(v,a)}</span>`);
+  return `<div class="tile${funnel?' funnel':''}" title="${MBY[id].n}: ${fmtFull(id,v)}">
+    <span class="k">${MBY[id].n}</span>
+    <span class="v">${fmt(id,v)}</span>
+    <span class="sub">${subs.join('')||'&nbsp;'}</span></div>`;
+}
+
+function renderFunnel(){
+  const ids=['leads','props','teams','book','vk','db'];
+  document.getElementById('funnelTiles').innerHTML = ids.map(i=>tile(i,{funnel:true})).join('');
+  const q=(a,b)=> b? nf(a/b*100,1)+' %' : '—';
+  const fac=(a,b)=> b? nf(a/b,2)+' ×' : '—';
+  document.getElementById('funnelHint').innerHTML = CUR.leadNA ? '' :
+    `${MBY.quote1.n} ${fac(CUR.props,CUR.leads)} · ${MBY.quote2.n} ${q(CUR.book,CUR.leads)} · ${MBY.quote3.n} ${q(CUR.book,CUR.props)}`;
+  const n=[];
+  if(CUR.leadNA) n.push(t('nt.leadNA'));
+  if(CUR.leadHistSkipped) n.push(t('nt.leadHistSkipped'));
+  if(CUR.leadHistUsed) n.push(t('nt.leadHistUsed'));
+  if(CUR.leadPartial) n.push(t('nt.leadPartial'));
+  const el=document.getElementById('leadNote');
+  el.innerHTML=n.join(' '); el.style.display=n.length?'block':'none';
+}
+
+function renderKPI(){
+  document.getElementById('kpiTiles').innerHTML =
+    ['ros','uteam','dbteam','mpn','apax','anights','webq','fte','dbfte'].map(i=>tile(i)).join('');
+  document.getElementById('kpiHint').textContent = t(CUR.dimFiltered ? 'h.kpiFiltered' : 'h.kpi');
+}
+
+/* --- kleine Dreier-Panels, je Kennzahl eigene Skala --- */
+function renderPanels(){
+  const ids=['teams','book','vk','db','leads','props'];
+  document.getElementById('cmpPanels').innerHTML = ids.map(id=>{
+    const rows=[
+      {k:t('ctl.py'),  v: state.vj? metricVal(id,VJ):null, c:'var(--s-vj)'},
+      {k:t('pn.plan'), v: state.ap? apVal(id,CUR):null,    c:'var(--s-ap)'},
+      {k:t('pn.ist'),  v: metricVal(id,CUR),               c:'var(--s-ist)'},
+    ];
+    const max=Math.max(...rows.map(r=>r.v||0),1e-9);
+    const W=100, H=26, gap=6;
+    const bars=rows.map((r,i)=>{
+      if(r.v===null) return `<div class="conv" style="height:${H}px;font-size:11px">${t('pn.none')}</div>`;
+      const w=Math.max(0.6, (r.v/max)*100);
+      return `<div style="display:flex;align-items:center;gap:8px;height:${H}px">
+        <span style="font-size:11px;font-weight:700;color:var(--fg-muted);width:52px;flex:none">${r.k}</span>
+        <span style="flex:1;background:var(--bg-alt);height:14px;border-radius:2px;position:relative">
+          <span style="position:absolute;inset:0 auto 0 0;width:${w}%;background:${r.c};
+            border-radius:0 4px 4px 0"></span></span>
+        <span style="font-size:12px;font-weight:900;color:var(--fg-strong);width:88px;text-align:right;flex:none;
+          font-variant-numeric:tabular-nums">${fmt(id,r.v)}</span></div>`;
+    }).join('');
+    return `<div class="panel"><h3>${MBY[id].n}</h3>${bars}</div>`;
+  }).join('');
+}
+
+/* --- Verlauf --- */
+function monthlySeries(id, fromD, toD){
+  const out=[];
+  let m0=mIdxLocal(new Date(fromD.getFullYear(),fromD.getMonth(),1));
+  let m1=mIdxLocal(new Date(toD.getFullYear(),toD.getMonth(),1));
+  for(let m=m0;m<=m1;m++){
+    const s=mStart(m), e=new Date(Date.UTC(2019+Math.floor(m/12),(m%12)+1,0));
+    const a=aggregate(d2i(new Date(s.getUTCFullYear(),s.getUTCMonth(),1)),
+                      d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())), TS);
+    out.push({m, v: metricVal(id,a), ap: apVal(id,a)});
+  }
+  return out;
+}
+function renderTrend(){
+  if(!TS) return;
+  const id=state.trend;
+  const cur=monthlySeries(id, state.from, state.to);
+  const vj = state.vj ? monthlySeries(id, shiftYear(state.from,1), shiftYear(state.to,1)) : null;
+  const W=1100,H=320,PL=64,PR=16,PT=16,PB=40;
+  const n=cur.length;
+  const vals=[];
+  cur.forEach(p=>{ if(p.v!==null) vals.push(p.v); if(state.ap&&p.ap!==null) vals.push(p.ap); });
+  if(vj) vj.forEach(p=>{ if(p.v!==null) vals.push(p.v); });
+  let lo=Math.min(0,...vals), hi=Math.max(...vals,0);
+  if(hi===lo) hi=lo+1;
+  const pad=(hi-lo)*0.08; hi+=pad; if(lo<0) lo-=pad;
+  const X=i=> PL + (n<=1?0:i*(W-PL-PR)/(n-1));
+  const Y=v=> PT + (H-PT-PB) * (1-(v-lo)/(hi-lo));
+  const ticks=5, tk=[];
+  for(let i=0;i<=ticks;i++) tk.push(lo+(hi-lo)*i/ticks);
+  const path=arr=>arr.map((p,i)=>p.v===null?null:`${i?'L':'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`)
+                     .filter(Boolean).join(' ');
+  const apPath=cur.map((p,i)=>p.ap===null?null:`${i?'L':'M'}${X(i).toFixed(1)},${Y(p.ap).toFixed(1)}`)
+                  .filter(Boolean).join(' ');
+  const labelEvery = Math.ceil(n/14);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monatsverlauf ${MBY[id].n}">`;
+  tk.forEach(v=>{ svg+=`<line class="gridline" x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
+     <text class="axis" x="${PL-8}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end">${fmt(id,v)}</text>`; });
+  cur.forEach((p,i)=>{ if(i%labelEvery) return;
+     const d=mStart(p.m);
+     svg+=`<text class="axis" x="${X(i).toFixed(1)}" y="${H-PB+18}" text-anchor="middle">${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}</text>`; });
+  if(vj) svg+=`<path class="line-vj" d="${path(vj)}"/>`;
+  if(state.ap && apPath) svg+=`<path class="line-ap" d="${apPath}"/>`;
+  svg+=`<path class="line-ist" d="${path(cur)}"/>`;
+  cur.forEach((p,i)=>{ if(p.v===null) return;
+    svg+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3.5" fill="var(--s-ist)" stroke="var(--surface)" stroke-width="2"/>`; });
+  cur.forEach((p,i)=>{
+    const w=(W-PL-PR)/Math.max(n,1);
+    const d=mStart(p.m);
+    const vjv = vj && vj[i] ? vj[i].v : null;
+    const tip=`${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}\n${MBY[id].n}: ${fmtFull(id,p.v)}`
+      + (vjv!==null&&vjv!==undefined?`\n${t('ctl.py')}: ${fmtFull(id,vjv)}`:'')
+      + (state.ap&&p.ap!==null?`\n${t('pn.plan')}: ${fmtFull(id,p.ap)}`:'');
+    svg+=`<rect class="hit" x="${(X(i)-w/2).toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${H-PT-PB}" data-tip="${tip.replace(/"/g,'&quot;')}"/>`;
+  });
+  svg+=`</svg>`;
+  document.getElementById('trendChart').innerHTML=svg;
+  const L=[`<span><i style="background:var(--s-ist)"></i>${t('pn.ist')}</span>`];
+  if(vj) L.push(`<span><i style="background:var(--s-vj)"></i>${t('lg.pyDashed')}</span>`);
+  if(state.ap && apPath) L.push(`<span><i style="background:var(--s-ap)"></i>${t('lg.apDotted')}</span>`);
+  L.push(`<span style="color:var(--fg-muted)">${MBY[id].n}</span>`);
+  document.getElementById('trendLegend').innerHTML=L.join('');
+  bindTips('#trendChart');
+}
+
+/* --- Teams im Vergleich --- */
+function renderTeams(){
+  if(!TS) return;
+  const id=state.teamMetric;
+  const f=d2i(state.from), to=d2i(state.to);
+  const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
+  const rows=[...TS].map(team=>{
+    const s=new Set([team]);
+    const c=aggregate(f,to,s), v=aggregate(fv,tv,s);
+    return {team, cur:metricVal(id,c), vj:metricVal(id,v)};
+  }).filter(r=>r.cur!==null && r.cur!==0 || (r.vj!==null&&r.vj!==0));
+  rows.sort((a,b)=>(b.cur??-1e18)-(a.cur??-1e18));
+  if(!rows.length){ document.getElementById('teamChart').innerHTML=`<p class="axis">${t('ho.noBookings')}</p>`; return; }
+  const RH=30, PL=76, PR=110, W=1100, H=rows.length*RH+30;
+  const max=Math.max(...rows.map(r=>Math.max(r.cur||0, r.vj||0)),1e-9);
+  const bw=W-PL-PR;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Teams nach ${MBY[id].n}">`;
+  rows.forEach((r,i)=>{
+    const y=i*RH+6, h=16;
+    const w=Math.max(0,(r.cur||0)/max*bw);
+    svg+=`<text class="axis-strong" x="${PL-10}" y="${y+h-3}" text-anchor="end">${r.team}</text>`;
+    svg+=`<rect x="${PL}" y="${y}" width="${bw}" height="${h}" fill="var(--bg-alt)"/>`;
+    svg+=`<rect x="${PL}" y="${y}" width="${w.toFixed(1)}" height="${h}" fill="var(--s-ist)" rx="0"/>`;
+    svg+=`<rect x="${(PL+w-4).toFixed(1)}" y="${y}" width="4" height="${h}" fill="var(--s-ist)" rx="2"/>`;
+    if(r.vj!==null && isFinite(r.vj)){
+      const xv=PL+Math.max(0,r.vj/max*bw);
+      svg+=`<line x1="${xv.toFixed(1)}" x2="${xv.toFixed(1)}" y1="${y-3}" y2="${y+h+3}" stroke="var(--s-vj)" stroke-width="2"/>`;
+    }
+    svg+=`<text class="axis-strong" x="${W-PR+10}" y="${y+h-3}">${fmt(id,r.cur)}</text>`;
+    const tt=`${r.team}\n${MBY[id].n}: ${fmtFull(id,r.cur)}`+(r.vj!==null?`\n${t('ctl.py')}: ${fmtFull(id,r.vj)}`:'');
+    svg+=`<rect class="hit" x="0" y="${y-6}" width="${W}" height="${RH}" data-tip="${tt.replace(/"/g,'&quot;')}"/>`;
+  });
+  svg+=`</svg>`;
+  document.getElementById('teamChart').innerHTML=svg;
+  bindTips('#teamChart');
+}
+
+/* --- Heatmap --- */
+const HEAT=['leads','props','teams','book','vk','db','ros','uteam','dbteam','mpn','bookfte','dbfte'];
+function heatColor(p){
+  if(p===null) return 'var(--rule)';
+  const c=Math.max(-1,Math.min(1,p/0.3));
+  const mix=Math.abs(c);
+  const a=(0.10+0.55*mix).toFixed(3);
+  return c>=0 ? `color-mix(in oklab, #1c7c4a ${(mix*72+8).toFixed(0)}%, transparent)`
+              : `color-mix(in oklab, #b4441a ${(mix*72+8).toFixed(0)}%, transparent)`;
+}
+function renderHeat(){
+  const f=d2i(state.from), to=d2i(state.to);
+  const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
+  const teams=[...TS];
+  const cells=teams.map(team=>{
+    const s=new Set([team]);
+    const c=aggregate(f,to,s), v=aggregate(fv,tv,s);
+    return {team, vals:HEAT.map(id=>{
+      const a=metricVal(id,c), b=metricVal(id,v);
+      if(a===null||b===null||b===0||!isFinite(a)||!isFinite(b)) return {p:null,a,b};
+      return {p:(a-b)/Math.abs(b), a, b};
+    })};
+  }).filter(r=>r.vals.some(v=>v.p!==null));
+  let h=`<thead><tr><th>${t('ctl.team')}</th>${HEAT.map(id=>`<th>${MBY[id].n}</th>`).join('')}</tr></thead><tbody>`;
+  for(const r of cells){
+    h+=`<tr><td class="lbl">${r.team}</td>`+r.vals.map((v,i)=>{
+      const label=v.p===null?'—':(v.p>0?'+':'')+nf(v.p*100,0)+' %';
+      const ttl=v.p===null?t('mp.noOps'):`${fmtFull(HEAT[i],v.a)} · ${t('ctl.py')} ${fmtFull(HEAT[i],v.b)}`;
+      return `<td style="background:${heatColor(v.p)}" title="${ttl}">${label}</td>`;
+    }).join('')+`</tr>`;
+  }
+  document.getElementById('heatTable').innerHTML=h+'</tbody>';
+}
+
+/* --- Tabelle --- */
+let TABLE=[];
+function renderTable(){
+  const f=d2i(state.from), to=d2i(state.to);
+  const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
+  const cols=['leads','props','teams','book','vk','db','ros','fte','uteam','dbteam','mpn','dbfte'];
+  TABLE=[...TS].map(team=>{
+    const s=new Set([team]);
+    const c=aggregate(f,to,s);
+    const v=aggregate(fv,tv,s);
+    const row={team};
+    cols.forEach(id=>{ row[id]=metricVal(id,c); row[id+'__vj']=metricVal(id,v); });
+    return row;
+  }).filter(r=>cols.some(id=>r[id]));
+  const total={team:t('tb.total')};
+  cols.forEach(id=>{ total[id]=metricVal(id,CUR); total[id+'__vj']=metricVal(id,VJ); });
+  const dir=state.sort.dir, col=state.sort.col;
+  TABLE.sort((a,b)=> col==='team' ? a.team.localeCompare(b.team)*dir
+                                  : ((b[col]??-1e18)-(a[col]??-1e18))*(dir<0?1:-1));
+  let h=`<thead><tr><th data-c="team">${t('ctl.team')}</th>${cols.map(id=>`<th data-c="${id}">${MBY[id].n}</th>`).join('')}</tr></thead><tbody>`;
+  const line=(r,strong)=>`<tr${strong?' style="font-weight:900"':''}><td>${r.team}</td>`+
+    cols.map(id=>`<td class="num">${fmt(id,r[id])}<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${state.vj?t('t.py')+' '+fmt(id,r[id+'__vj']):''}</span></td>`).join('')+`</tr>`;
+  h+=TABLE.map(r=>line(r)).join('')+line(total,true)+'</tbody>';
+  const el=document.getElementById('dataTable');
+  el.innerHTML=h;
+  el.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{
+    const c=th.dataset.c;
+    state.sort = {col:c, dir: state.sort.col===c ? -state.sort.dir : -1};
+    renderTable();
+  });
+}
+function copyTable(){
+  const rows=[...document.querySelectorAll('#dataTable tr')].map(tr=>
+    [...tr.children].map(td=>td.innerText.replace(/\n/g,' ').trim()).join('\t')).join('\n');
+  navigator.clipboard?.writeText(rows).then(()=>{
+    const b=document.getElementById('copyBtn'); const o=b.textContent;
+    b.textContent=t('tb.copied'); setTimeout(()=>b.textContent=o,1400);
+  });
+}
+
+/* --- Definitionen --- */
+function renderDefs(){
+  const keys=['stichtag','db','teams','leads','props','web','fte','ap','py','gj','mpn',
+              'maps','dest','herk','region','hotel','hotelview','rank'];
+  document.getElementById('defs').innerHTML =
+    keys.map(k=>`<dt>${t('def.'+k+'.t')}</dt><dd>${t('def.'+k+'.d')}</dd>`).join('');
+}
+
+/* ============================ Karten ============================ */
+/* Geometrie: Natural Earth, gemeinfrei, projiziert auf ETRS89-LAEA.
+   Sie steckt fest in der Seite — kein Kartenserver, keine Kacheln,
+   funktioniert deshalb auch ohne Internetverbindung. */
+const MAP_M = ['book','teams','vk','db','ros','leads','props','pax','nights',
+               'uteam','dbteam','mpn','quote2'];
+
+function bookOKExcept(r, skip){
+  if(skip!=='dest'   && state.dest   && D.dests[r[12]] !== state.dest) return false;
+  if(skip!=='herk'   && state.herk   && D.regs[r[3]]   !== state.herk) return false;
+  if(skip!=='region' && state.region && String(r[11])  !== state.region) return false;
+  return true;
+}
+function leadOKExcept(r, skip){
+  if(skip!=='dest' && state.dest && D.dests[r[3]] !== state.dest) return false;
+  if(skip!=='herk' && state.herk && D.regs[r[2]]  !== state.herk) return false;
+  return true;
+}
+
+/* Alle Auspraegungen einer Dimension auf einmal — ein Durchlauf statt
+   eines Durchlaufs je Land. Der Filter auf die Dimension selbst bleibt
+   dabei aussen vor, sonst faerbt sich nur noch die eigene Auswahl. */
+function groupBy(kind){
+  const from=d2i(state.from), to=d2i(state.to);
+  const out=new Map();
+  const get=k=>{ let b=out.get(k); if(!b){ b=emptyBase(); out.set(k,b);} return b; };
+  for(const r of D.bookings){
+    if(r[0]<from || r[0]>to) continue;
+    if(!TS.has(D.teams[r[1]])) continue;
+    if(!bookOKExcept(r,kind)) continue;
+    let key;
+    if(kind==='dest')   key = r[12]>=0 ? D.dests[r[12]] : null;
+    else if(kind==='herk') key = r[3]>=0 ? D.regs[r[3]] : null;
+    else                key = r[11]>=0 ? String(r[11]) : null;
+    if(key===null) continue;
+    const b=get(key);
+    b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
+    b.teams+=r[8]; b.pax+=r[9]; b.nights+=r[10]; b.paxn+=r[9]*r[10];
+  }
+  if(kind!=='region' && !state.region){
+    for(const r of D.leadDaily){
+      if(r[0]<from || r[0]>to) continue;
+      if(!TS.has(D.teams[r[1]])) continue;
+      if(!leadOKExcept(r,kind)) continue;
+      const idx = kind==='dest' ? r[3] : r[2];
+      if(idx<0) continue;
+      const b=get(kind==='dest' ? D.dests[idx] : D.regs[idx]);
+      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6];
+    }
+  } else {
+    for(const b of out.values()) b.leadNA=true;
+  }
+  return out;
+}
+
+/* Klassengrenzen auf einer Wurzelskala zum Maximum.
+   Quantile waeren hier falsch: sie verteilen die Laender gleichmaessig
+   auf die Farbstufen und liessen Schweden mit sechs Buchungen so dunkel
+   aussehen wie Deutschland. Die Wurzel haelt die Rangfolge sichtbar und
+   loest den unteren Bereich trotzdem noch auf. */
+function breaks(values,n){
+  const v=values.filter(x=>x!==null&&isFinite(x)&&x>0);
+  if(!v.length) return [];
+  const max=Math.max(...v);
+  const out=[];
+  for(let i=1;i<n;i++) out.push(max*Math.pow(i/n,2));
+  return out;
+}
+const binOf=(x,br)=>{ if(x===null||!isFinite(x)||x<=0) return 0;
+  let i=0; while(i<br.length && x>=br[i]) i++; return i+1; };
+
+function drawMap(el,legEl,geoKey,values,labels,metric,selected,onPick){
+  const g=GEO[geoKey], [W,H]=g.vb;
+  const vals=[...values.values()];
+  const br=breaks(vals,6);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Karte ${MBY[metric].n}">`;
+  for(const f of g.f){
+    const key = geoKey==='eu' ? f[0] : f[0]+'|'+f[1];
+    const v = values.has(key) ? values.get(key) : null;
+    const nd = v===null;
+    const b = binOf(v,br);
+    const name = labels.get(key) || f[geoKey==='eu'?1:2];
+    const tip = `${name}\n${MBY[metric].n}: ${nd?t('mp.noOps'):fmtFull(metric,v)}`;
+    svg+=`<path class="geo${nd?' nd':''}${key===selected?' sel':''}" d="${f[f.length-1]}"`
+       + (nd?'':` fill="var(--m${b})"`)
+       + ` data-key="${key}" data-tip="${tip.replace(/"/g,'&quot;')}"><title>${name}</title></path>`;
+  }
+  svg+=`</svg>`;
+  el.innerHTML=svg;
+  el.querySelectorAll('path[data-key]').forEach(p=>{
+    p.addEventListener('click',()=>onPick(p.dataset.key));
+  });
+  bindTips('#'+el.id);
+
+  const edges=[0,...br];
+  const zero = vals.some(v=>v!==null&&isFinite(v)&&v<=0);
+  legEl.innerHTML=`<span class="cap">${MBY[metric].n}</span>`+
+    (zero?`<span class="lg"><span class="sw" style="background:var(--m0)"></span><span>0</span></span>`:'')+
+    edges.map((e,i)=>`<span class="lg"><span class="sw" style="background:var(--m${i+1})"></span>`+
+      `<span>${i===0?'&gt; 0':fmt(metric,e)}</span></span>`).join('')+
+    `<span class="lg" style="margin-left:var(--s-3)"><span class="sw" style="background:var(--bg-alt)"></span>`+
+    `<span>${t('mp.none')}</span></span>`;
+}
+
+function renderMaps(){
+  const kind = state.mapMode;
+  const metric = state.mapMetric;
+  const gc = groupBy(kind);
+  const vals=new Map(), labs=new Map();
+  for(const [k,b] of gc){ vals.set(k, metricVal(metric,b)); labs.set(k, cname(k)); }
+  document.getElementById('mapTitleEU').textContent =
+    t(kind==='dest' ? 'mp.titleDest' : 'mp.titleHerk');
+  drawMap(document.getElementById('mapEU'), document.getElementById('mapLegEU'),
+          'eu', vals, labs, metric,
+          kind==='dest' ? state.dest : state.herk,
+          key=>{
+            if(kind==='dest'){ state.dest = state.dest===key ? '' : key; }
+            else { state.herk = state.herk===key ? '' : key; state.region=''; fillRegions(); }
+            render();
+          });
+
+  const card=document.getElementById('mapDachCard');
+  const grid=document.getElementById('mapGrid');
+  if(kind==='herk'){
+    card.hidden=false; grid.classList.remove('solo');
+    const gr=groupBy('region');
+    const rv=new Map(), rl=new Map();
+    for(const [idx,b] of gr){
+      const r=D.regions[+idx];
+      if(!r) continue;
+      rv.set(r[0]+'|'+r[1], metricVal(metric,b));
+      rl.set(r[0]+'|'+r[1], r[2]+' · '+cname(r[0]));
+    }
+    const selReg = state.region!=='' && D.regions[+state.region]
+      ? D.regions[+state.region][0]+'|'+D.regions[+state.region][1] : null;
+    drawMap(document.getElementById('mapDACH'), document.getElementById('mapLegDACH'),
+            'dach', rv, rl, metric, selReg,
+            key=>{
+              const [land,code]=key.split('|');
+              const i=D.regions.findIndex(r=>r[0]===land && r[1]===code);
+              if(i<0) return;
+              state.region = String(state.region)===String(i) ? '' : String(i);
+              if(state.region){ state.herk=land; }
+              fillRegions(); render();
+            });
+  } else {
+    card.hidden=true; grid.classList.add('solo');
+  }
+
+  document.getElementById('mapHint').textContent = kind==='dest'
+    ? t('h.mapDest')
+    : t(MBY[metric].nl ? 'h.mapRegionNA' : 'h.mapHerk');
+}
+
+/* ============================ Hotel ============================ */
+/* Buchungen und Leads einmal je Hotel vorsortieren — danach ist die
+   Detailansicht unabhängig von der Datenmenge sofort da. */
+const HBOOK = new Map(), HLEAD = new Map();
+for(const r of D.bookings){ if(r[4]<0) continue;
+  (HBOOK.get(r[4]) || HBOOK.set(r[4],[]).get(r[4])).push(r); }
+for(const r of D.leadHotel||[]){
+  (HLEAD.get(r[1]) || HLEAD.set(r[1],[]).get(r[1])).push(r); }
+const HOTEL_M = ['leads','props','book','teams','vk','db','ros','pax','nights',
+                 'anights','apax','mpn','uteam','dbteam','quote2','quote3','webq'];
+const hotelActive = new Set([...HBOOK.keys(), ...HLEAD.keys()]);
+
+function aggHotel(from,to,hi,teamFilter){
+  const b = emptyBase();
+  for(const r of (HBOOK.get(hi)||[])){
+    if(r[0]<from || r[0]>to) continue;
+    if(teamFilter && !teamFilter.has(D.teams[r[1]])) continue;
+    if(teamFilter && !bookOK(r)) continue;
+    b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
+    b.teams+=r[8]; b.pax+=r[9]; b.nights+=r[10]; b.paxn+=r[9]*r[10];
+  }
+  if(!teamFilter){
+    for(const r of (HLEAD.get(hi)||[])){
+      if(r[0]<from || r[0]>to) continue;
+      b.leads+=r[2]; b.web+=r[3]; b.props+=r[4];
+    }
+  }
+  return b;
+}
+
+function initHotel(){
+  const box=document.getElementById('hotelQ'), list=document.getElementById('hotelHits');
+  const sel=(el)=>{ el.innerHTML = HOTEL_M.map(id=>`<option value="${id}">${MBY[id].n}</option>`).join(''); };
+  const hm=document.getElementById('hotelMetric'), tm=document.getElementById('topMetric');
+  sel(hm); sel(tm);
+  hm.value='book'; tm.value='db';
+  hm.onchange=()=>{state.hotelMetric=hm.value; renderHotelDetail();};
+  tm.onchange=()=>{state.topMetric=tm.value; renderTopHotels();};
+  document.getElementById('hotelClear').onclick=()=>{
+    state.hotel=null; box.value=''; renderHotelDetail();
+  };
+
+  let hits=[], cursor=-1;
+  const close=()=>{ list.hidden=true; cursor=-1; };
+  const search=q=>{
+    q=q.trim().toLowerCase();
+    if(q.length<2){ close(); return; }
+    const isNum=/^\d+$/.test(q);
+    const out=[];
+    for(let i=0;i<D.hotels.length;i++){
+      const h=D.hotels[i];
+      const name=h[1].toLowerCase(), id=String(h[0]);
+      let score=null;
+      if(isNum && id.startsWith(q)) score = id===q ? 0 : 1;
+      else {
+        const p=name.indexOf(q);
+        if(p===0) score=2; else if(p>0) score=3;
+      }
+      if(score!==null) out.push({i,score,active:hotelActive.has(i)});
+    }
+    out.sort((a,b)=> a.score-b.score || (b.active-a.active) || D.hotels[a.i][1].localeCompare(D.hotels[b.i][1]));
+    hits=out.slice(0,14);
+    if(!hits.length){ list.innerHTML=`<li aria-disabled="true" style="cursor:default;color:var(--fg-muted)">${t('ho.nohit')}</li>`; list.hidden=false; return; }
+    const mark=(s)=>{ const p=s.toLowerCase().indexOf(q);
+      return (isNum||p<0) ? s : s.slice(0,p)+'<em>'+s.slice(p,p+q.length)+'</em>'+s.slice(p+q.length); };
+    list.innerHTML=hits.map((h,k)=>{
+      const x=D.hotels[h.i];
+      return `<li role="option" data-k="${k}" aria-selected="${k===cursor}">
+        <b>${mark(x[1])}</b><span>${x[2]||''} · ${x[0]}${h.active?'':' · '+t('ho.noops')}</span></li>`;
+    }).join('');
+    list.hidden=false;
+  };
+  box.addEventListener('input',()=>search(box.value));
+  box.addEventListener('focus',()=>{ if(box.value.trim().length>=2) search(box.value); });
+  box.addEventListener('keydown',e=>{
+    if(list.hidden) return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      cursor=Math.max(0,Math.min(hits.length-1,cursor+(e.key==='ArrowDown'?1:-1)));
+      [...list.children].forEach((li,k)=>li.setAttribute('aria-selected',String(k===cursor)));
+    } else if(e.key==='Enter'){
+      e.preventDefault(); pick(cursor<0?0:cursor);
+    } else if(e.key==='Escape') close();
+  });
+  list.addEventListener('mousedown',e=>{
+    const li=e.target.closest('[data-k]'); if(!li) return;
+    e.preventDefault(); pick(+li.dataset.k);
+  });
+  document.addEventListener('click',e=>{ if(!e.target.closest('.hsearch')) close(); });
+  function pick(k){
+    const h=hits[k]; if(!h) return;
+    state.hotel=h.i; box.value=D.hotels[h.i][1]; close(); renderHotelDetail();
+    document.getElementById('s-hotel').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+}
+
+function renderHotelDetail(){
+  const body=document.getElementById('hotelBody'), empty=document.getElementById('hotelEmpty');
+  if(state.hotel===null || state.hotel===undefined){ body.hidden=true; empty.hidden=false; return; }
+  body.hidden=false; empty.hidden=true;
+  const h=D.hotels[state.hotel];
+  const f=d2i(state.from), to=d2i(state.to);
+  const cur=aggHotel(f,to,state.hotel,null);
+  const vj =aggHotel(d2i(shiftYear(state.from,1)),d2i(shiftYear(state.to,1)),state.hotel,null);
+
+  const meta=[];
+  if(h[2]) meta.push(cname(h[2]));
+  meta.push('WebID '+h[0]);
+  if(h[4]!==null && h[4]!==undefined){
+    const d=mStart(h[4]);
+    meta.push(t('ho.since')+' '+MONTHS[d.getUTCMonth()]+' '+d.getUTCFullYear());
+  }
+  document.getElementById('hotelMeta').textContent=meta.join(' · ');
+  document.getElementById('hotelName').innerHTML=h[1]+(h[3]?`<span class="badge">${t('ho.excl')}</span>`:'');
+
+  document.getElementById('hotelTiles').innerHTML = HOTEL_M.map(id=>{
+    const v=metricVal(id,cur), r=state.vj?metricVal(id,vj):null;
+    const sub = r!==null ? `<span>${t('t.py')} ${fmt(id,r)} ${deltaHTML(v,r)}</span>` : '&nbsp;';
+    return `<div class="tile" title="${MBY[id].n}: ${fmtFull(id,v)}">
+      <span class="k">${MBY[id].n}</span><span class="v">${fmt(id,v)}</span>
+      <span class="sub">${sub}</span></div>`;
+  }).join('');
+
+  renderHotelChart();
+  renderHotelTeams(f,to);
+}
+
+function renderHotelChart(){
+  const id=state.hotelMetric||'book';
+  let m0=mIdxLocal(new Date(state.from.getFullYear(),state.from.getMonth(),1));
+  let m1=mIdxLocal(new Date(state.to.getFullYear(),state.to.getMonth(),1));
+  if(m1-m0>47) m0=m1-47;
+  const pts=[];
+  for(let m=m0;m<=m1;m++){
+    const s=mStart(m), e=new Date(Date.UTC(2019+Math.floor(m/12),(m%12)+1,0));
+    const a=aggHotel(d2i(new Date(s.getUTCFullYear(),s.getUTCMonth(),1)),
+                     d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())),state.hotel,null);
+    pts.push({m, v:metricVal(id,a)});
+  }
+  const W=760,H=240,PL=62,PR=12,PT=12,PB=34;
+  const hi=Math.max(...pts.map(p=>p.v||0),1e-9);
+  const n=pts.length, bw=(W-PL-PR)/n;
+  const Y=v=>PT+(H-PT-PB)*(1-v/hi);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monatsverlauf ${MBY[id].n}">`;
+  for(let i=0;i<=4;i++){ const v=hi*i/4;
+    svg+=`<line class="gridline" x1="${PL}" x2="${W-PR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
+      <text class="axis" x="${PL-7}" y="${(Y(v)+4).toFixed(1)}" text-anchor="end">${fmt(id,v)}</text>`; }
+  const every=Math.ceil(n/12);
+  pts.forEach((p,i)=>{
+    const x=PL+i*bw, v=p.v||0;
+    if(v>0){
+      const y=Y(v), hh=Math.max(1.5,H-PB-y);
+      svg+=`<rect x="${(x+1).toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1,bw-2).toFixed(1)}" height="${hh.toFixed(1)}" fill="var(--s-ist)" rx="2" ry="2"/>`;
+      svg+=`<rect x="${(x+1).toFixed(1)}" y="${(H-PB-Math.min(hh,3)).toFixed(1)}" width="${Math.max(1,bw-2).toFixed(1)}" height="${Math.min(hh,3).toFixed(1)}" fill="var(--s-ist)"/>`;
+    }
+    if(i%every===0){ const d=mStart(p.m);
+      svg+=`<text class="axis" x="${(x+bw/2).toFixed(1)}" y="${H-PB+16}" text-anchor="middle">${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}</text>`; }
+    const d=mStart(p.m);
+    svg+=`<rect class="hit" x="${x.toFixed(1)}" y="${PT}" width="${bw.toFixed(1)}" height="${H-PT-PB}" data-tip="${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}\n${MBY[id].n}: ${fmtFull(id,p.v)}"/>`;
+  });
+  svg+=`<line class="gridline" x1="${PL}" x2="${W-PR}" y1="${H-PB}" y2="${H-PB}"/></svg>`;
+  document.getElementById('hotelChart').innerHTML=svg;
+  bindTips('#hotelChart');
+}
+
+function renderHotelTeams(f,to){
+  const rows=[];
+  for(const team of D.teams){
+    const a=aggHotel(f,to,state.hotel,new Set([team]));
+    if(!a.book) continue;
+    rows.push({team, book:a.book, teams:a.teams, vk:a.vk, db:a.db});
+  }
+  rows.sort((a,b)=>b.db-a.db);
+  const el=document.getElementById('hotelTeams');
+  if(!rows.length){ el.innerHTML=`<tbody><tr><td class="axis" style="padding:var(--s-4)">${t('ho.noBookings')}</td></tr></tbody>`; return; }
+  el.innerHTML=`<thead><tr><th>${t('ctl.team')}</th><th>${MBY.book.n}</th><th>${MBY.teams.n}</th><th>${MBY.vk.n}</th><th>${MBY.db.n}</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r.team}</td><td class="num">${nf(r.book,0)}</td><td class="num">${nf(r.teams,0)}</td>
+      <td class="num">${fmt('vk',r.vk)}</td><td class="num">${fmt('db',r.db)}</td></tr>`).join('')+`</tbody>`;
+}
+
+function renderTopHotels(){
+  const id=state.topMetric||'db';
+  const f=d2i(state.from), to=d2i(state.to);
+  const teamFilter = (state.team || state.group!=='all' || dimActive()) ? TS : null;
+  const cols=teamFilter ? ['book','teams','vk','db','ros','dbteam']
+                        : ['leads','props','book','teams','vk','db','ros','dbteam'];
+  const sortId = cols.includes(id) ? id : 'db';
+  document.getElementById('topHint').textContent = t(teamFilter ? 'ho.rankFiltered' : 'ho.rankAll');
+  const rows=[];
+  for(const hi of hotelActive){
+    const a=aggHotel(f,to,hi,teamFilter);
+    if(!a.book && !a.leads && !a.props) continue;
+    const row={hi, name:D.hotels[hi][1], land:D.hotels[hi][2], id:D.hotels[hi][0]};
+    cols.forEach(c=>row[c]=metricVal(c,a));
+    rows.push(row);
+  }
+  rows.sort((a,b)=>(b[sortId]??-1e18)-(a[sortId]??-1e18));
+  const top=rows.slice(0,40);
+  const el=document.getElementById('topHotels');
+  el.innerHTML=`<thead><tr><th>${t('ho.hotel')}</th><th>${t('ho.land')}</th><th>WebID</th>`+
+    cols.map(c=>`<th${c===sortId?' style="color:var(--fg-strong)"':''}>${MBY[c].n}</th>`).join('')+
+    `</tr></thead><tbody>`+
+    top.map(r=>`<tr data-hi="${r.hi}" style="cursor:pointer">
+      <td>${r.name}</td><td>${r.land?cname(r.land):''}</td><td class="num" style="font-weight:400">${r.id}</td>`+
+      cols.map(c=>`<td class="num">${fmt(c,r[c])}</td>`).join('')+`</tr>`).join('')+
+    `</tbody>`;
+  el.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{
+    state.hotel=+tr.dataset.hi;
+    document.getElementById('hotelQ').value=D.hotels[state.hotel][1];
+    renderHotelDetail();
+    document.getElementById('s-hotel').scrollIntoView({behavior:'smooth',block:'start'});
+  });
+  if(rows.length>40){
+    el.insertAdjacentHTML('beforeend',
+      `<tfoot><tr><td colspan="${cols.length+3}" style="color:var(--fg-muted);font-weight:400">`+
+      `${t('ho.more',{n:rows.length, m:MBY[sortId].n})}</td></tr></tfoot>`);
+  }
+}
+
+/* --- Tooltips --- */
+const tip=document.getElementById('tip');
+function bindTips(sel){
+  const root=document.querySelector(sel);
+  root.querySelectorAll('[data-tip]').forEach(el=>{
+    el.addEventListener('mouseenter',e=>{
+      tip.innerHTML=el.dataset.tip.split('\n').map((l,i)=>i?l:`<b>${l}</b>`).join('<br>');
+      tip.classList.add('on');
+    });
+    el.addEventListener('mousemove',e=>{
+      const r=tip.getBoundingClientRect();
+      let x=e.clientX+14, y=e.clientY+14;
+      if(x+r.width>innerWidth-8) x=e.clientX-r.width-14;
+      if(y+r.height>innerHeight-8) y=e.clientY-r.height-14;
+      tip.style.left=x+'px'; tip.style.top=y+'px';
+    });
+    el.addEventListener('mouseleave',()=>tip.classList.remove('on'));
+  });
+}
+
+/*__REPORTS__*/
+
+/* --- Start --- */
+function syncCtrlHeight(){
+  const h = document.querySelector('.controls').offsetHeight;
+  document.documentElement.style.setProperty('--ctrlh', h+'px');
+}
+addEventListener('resize', syncCtrlHeight);
+buildLocale();
+initControls();
+initHotel();
+initReports();
+document.querySelectorAll('#viewSw [data-v]').forEach(b=>b.onclick=()=>setView(b.dataset.v));
+applyLabels();
+applyPreset('12m');
+render();
+syncCtrlHeight();
+{ let v='cockpit'; try{ v=localStorage.getItem('socca.view')||'cockpit'; }catch(e){}
+  setView(v==='reports'?'reports':'cockpit'); }
+}
+/*__BOOT__*/
+</script>

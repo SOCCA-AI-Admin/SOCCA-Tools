@@ -1,0 +1,10 @@
+# Die Arbeitsmappen enthalten Umsatz-, Margen- und Personaldaten.
+# Sie gehören nicht in ein Git-Repository.
+data/*
+!data/.gitkeep
+web/
+.state/
+SOCCA_Sales_Cockpit.html
+artifact_body.html
+__pycache__/
+.venv/
