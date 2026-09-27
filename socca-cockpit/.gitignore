@@ -1,6 +1,7 @@
-# Sales.xlsb und C_AP.xlsx in data/ werden mit versioniert.
-#data/*
-#!data/.gitkeep
+# Die Arbeitsmappen enthalten Umsatz-, Margen- und Personaldaten.
+# Sie gehören nicht in ein Git-Repository.
+data/*
+!data/.gitkeep
 web/*
 !web/.gitkeep
 .state/
@@ -8,9 +9,8 @@ SOCCA_Sales_Cockpit.html
 artifact_body.html
 __pycache__/
 .venv/
-# Zugangsdaten für SharePoint. Die Vorlage in deploy/ bleibt im Repository.
+# Zugangsdaten für SharePoint
 sharepoint.env*
-!deploy/sharepoint.env.vorlage
 # Docker: lokale Einstellungen und Passwörter
 .env
 .htpasswd

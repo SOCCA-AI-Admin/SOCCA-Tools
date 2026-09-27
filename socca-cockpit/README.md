@@ -119,7 +119,8 @@ Zwei Container, beschrieben in `docker-compose.yml`:
   rechnet nur dann neu (`update.sh`). Quelle ist SharePoint, sobald
   `sharepoint.env` existiert, sonst der Ordner `data/`. Der Projektordner ist
   eingebunden — ein `git pull` wirkt ohne Neubau.
-- **web** liefert die fertige Seite auf Port 8001 aus, mit Passwortschutz.
+- **web** liefert die fertige Seite auf Port 8001 aus — ohne Passwort, für
+  alle im internen Netz.
 
 Kein Cron, keine Domain, kein Zertifikat nötig. Die Abschnitte zu nginx,
 certbot und Cron weiter unten gelten nur für den Betrieb ohne Docker.
@@ -134,20 +135,10 @@ cd socca-cockpit
 # 1. Eigene Benutzer-ID eintragen, damit die Dateien dir gehören
 printf 'COCKPIT_UID=%s\nCOCKPIT_GID=%s\n' "$(id -u)" "$(id -g)" > .env
 
-# 2. Zugang für das Cockpit anlegen (fragt zweimal nach dem Passwort)
-printf 'justus:%s\n' "$(openssl passwd -apr1)" > .htpasswd
-#    weitere Personen anhängen:
-#    printf 'vorname:%s\n' "$(openssl passwd -apr1)" >> .htpasswd
-
-# 3. Starten
+# 2. Starten
 docker compose up -d --build
 docker compose logs -f worker        # Strg+C beendet nur die Anzeige
 ```
-
-**`.htpasswd` muss vor dem ersten Start existieren.** Fehlt die Datei, legt
-Docker an ihrer Stelle einen leeren Ordner an und der Container *web*
-startet nicht. Dann: `rm -r .htpasswd`, Datei wie oben anlegen,
-`docker compose up -d`.
 
 Solange der erste Lauf rechnet (drei bis vier Minuten), zeigt
 `http://10.10.20.60:8001` eine Seite „wird aufgebaut“, die sich selbst neu
@@ -169,10 +160,18 @@ Die Container starten nach einem Neustart des Servers von selbst.
 
 ### Gut zu wissen
 
-- **Nur im internen Netz.** Port 8001 ist unverschlüsseltes HTTP. Das ist
-  im internen Netz vertretbar, gehört aber nicht ins Internet. Passwörter
-  gehen im LAN unverschlüsselt über die Leitung — keine Passwörter
-  verwenden, die auch anderswo gelten.
+- **Ohne Passwort, nur im internen Netz.** Jeder, der `10.10.20.60`
+  erreicht, sieht Umsätze, Margen und FTE — auch über VPN oder ein
+  Gäste-WLAN im selben Netz. Port 8001 darf deshalb nicht ins Internet
+  freigegeben werden.
+- **Zugriff auf bestimmte Netze begrenzen:** In `deploy/docker/nginx.conf`
+  die Zeilen `allow …` / `deny all` aktivieren und die Netze eintragen, dann
+  `docker compose restart web`.
+- **Passwortschutz wieder einschalten:** In `deploy/docker/nginx.conf` die
+  beiden `auth_basic`-Zeilen und in `docker-compose.yml` die Zeile mit
+  `.htpasswd` aktivieren. Zugang anlegen mit
+  `printf 'justus:%s\n' "$(openssl passwd -apr1)" > .htpasswd`, dann
+  `docker compose up -d`.
 - **Nicht zusätzlich einen Cron** für `update.sh` einrichten — der Container
   erledigt das.
 - **Ohne SharePoint** legst du die Mappen per SFTP/WinSCP nach
