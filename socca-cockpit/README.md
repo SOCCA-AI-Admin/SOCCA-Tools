@@ -1,7 +1,5 @@
 # SOCCA Sales Cockpit
 
-Eigenständiges Tool im Repository **SOCCA-Tools**, Ordner `socca-cockpit/`. Eigene Python-Umgebung, eigener Webserver, eigener Cron. Nicht Teil von Rechnungs-Upload oder Hotel-Bildbearbeitung.
-
 Interaktives Vertriebs-Dashboard der SOCCA GROUP. Liest die Sales-Arbeitsmappe
 und den Combit-Export, rechnet daraus einen kompakten Datensatz und baut eine
 statische HTML-Seite.
@@ -14,8 +12,10 @@ Webserver, der statische Dateien ausliefert.
 
 ## Der Ablauf in einem Satz
 
-Du legst `Sales.xlsx` und `C_AP.xlsx` in `data/`, ein stündlicher Cronlauf
-merkt die Änderung und baut die Seite neu.
+Der Server holt sich `Sales.xlsb` und `C_AP.xlsx` stündlich selbst aus
+SharePoint (Site SOCCASales), rechnet bei einer Änderung neu und tauscht die
+Seite aus. Du arbeitest nur in Excel. Ohne SharePoint-Zugang geht es auch
+über Dateien, die du per SFTP nach `data/` legst.
 
 ---
 
@@ -24,7 +24,13 @@ merkt die Änderung und baut die Seite neu.
 Das Paket enthält **keine Daten**. Das Cockpit, das du bisher gesehen hast
 (Artefakt auf claude.ai, `SOCCA_Sales_Cockpit.html`, Beispiel-PDFs), wurde aus
 `20260831_Sales.xlsb` und einem Combit-Export als CSV gerechnet — Stand
-31.08.2026. Mit deinen aktuellen Dateien gehst du so vor:
+31.08.2026.
+
+**Mit SharePoint-Anbindung** (empfohlen, siehe *Dateien direkt aus
+SharePoint holen*) entfällt Schritt 1: Der Server lädt die aktuellen Dateien
+selbst. Die Schritte 2, 3 und 5 gelten trotzdem.
+
+**Ohne SharePoint-Anbindung** gehst du so vor:
 
 **1. Dateien nach `data/` legen.**
 
@@ -62,11 +68,11 @@ Trennzeichen `;` oder `,`.
 Auf dem Server:
 
 ```bash
-cd /srv/socca-tools/socca-cockpit
+cd /srv/socca-cockpit
 PYTHON=.venv/bin/python ./update.sh --force
 ```
 
-Lokal unter Windows im Ordner `socca-cockpit` (PowerShell) — ohne `update.sh`:
+Lokal unter Windows (Cursor-Terminal, PowerShell) — ohne `update.sh`:
 
 ```powershell
 py -m venv .venv
@@ -97,23 +103,109 @@ schreibt.
 
 ---
 
-## Einmalige Einrichtung auf dem Server
+## Betrieb mit Docker (Server 10.10.20.60)
+
+So läuft das Cockpit neben der bestehenden App: gleiche IP, eigener Port.
+
+| | Adresse |
+|---|---|
+| Bestehende App | `http://10.10.20.60:8000` |
+| SOCCA Sales Cockpit | `http://10.10.20.60:8001` |
+| Projektordner | `/opt/socca-tools/socca-cockpit` |
+
+Zwei Container, beschrieben in `docker-compose.yml`:
+
+- **worker** prüft alle 15 Minuten, ob sich die Mappen geändert haben, und
+  rechnet nur dann neu (`update.sh`). Quelle ist SharePoint, sobald
+  `sharepoint.env` existiert, sonst der Ordner `data/`. Der Projektordner ist
+  eingebunden — ein `git pull` wirkt ohne Neubau.
+- **web** liefert die fertige Seite auf Port 8001 aus, mit Passwortschutz.
+
+Kein Cron, keine Domain, kein Zertifikat nötig. Die Abschnitte zu nginx,
+certbot und Cron weiter unten gelten nur für den Betrieb ohne Docker.
+
+### Einrichten
 
 ```bash
-# 1. SOCCA-Tools ablegen, dann in dieses Tool wechseln
-sudo mkdir -p /srv/socca-tools
-sudo chown $USER /srv/socca-tools
-git clone git@github.com:SOCCA-AI-Admin/SOCCA-Tools.git /srv/socca-tools
-cd /srv/socca-tools/socca-cockpit
+cd /opt/socca-tools
+git clone <URL-des-Repositorys> socca-cockpit
+cd socca-cockpit
+
+# 1. Eigene Benutzer-ID eintragen, damit die Dateien dir gehören
+printf 'COCKPIT_UID=%s\nCOCKPIT_GID=%s\n' "$(id -u)" "$(id -g)" > .env
+
+# 2. Zugang für das Cockpit anlegen (fragt zweimal nach dem Passwort)
+printf 'justus:%s\n' "$(openssl passwd -apr1)" > .htpasswd
+#    weitere Personen anhängen:
+#    printf 'vorname:%s\n' "$(openssl passwd -apr1)" >> .htpasswd
+
+# 3. Starten
+docker compose up -d --build
+docker compose logs -f worker        # Strg+C beendet nur die Anzeige
+```
+
+**`.htpasswd` muss vor dem ersten Start existieren.** Fehlt die Datei, legt
+Docker an ihrer Stelle einen leeren Ordner an und der Container *web*
+startet nicht. Dann: `rm -r .htpasswd`, Datei wie oben anlegen,
+`docker compose up -d`.
+
+Solange der erste Lauf rechnet (drei bis vier Minuten), zeigt
+`http://10.10.20.60:8001` eine Seite „wird aufgebaut“, die sich selbst neu
+lädt.
+
+### Im Alltag
+
+| Aufgabe | Befehl (im Projektordner) |
+|---|---|
+| Sofort neu rechnen | `docker compose exec worker bash update.sh --force` |
+| Protokoll ansehen | `tail -30 .state/update.log` oder `docker compose logs --tail 50 worker` |
+| Neue Version aus GitHub | `git pull && docker compose up -d --build` |
+| SharePoint-Zugang testen | `docker compose exec worker python3 fetch_sharepoint.py --check` |
+| Anhalten / wieder starten | `docker compose stop` / `docker compose start` |
+| Anderer Port | in `.env` `COCKPIT_PORT=8002` ergänzen, dann `docker compose up -d` |
+| Häufiger prüfen | in `.env` `COCKPIT_INTERVAL=300` (Sekunden), dann `docker compose up -d` |
+
+Die Container starten nach einem Neustart des Servers von selbst.
+
+### Gut zu wissen
+
+- **Nur im internen Netz.** Port 8001 ist unverschlüsseltes HTTP. Das ist
+  im internen Netz vertretbar, gehört aber nicht ins Internet. Passwörter
+  gehen im LAN unverschlüsselt über die Leitung — keine Passwörter
+  verwenden, die auch anderswo gelten.
+- **Nicht zusätzlich einen Cron** für `update.sh` einrichten — der Container
+  erledigt das.
+- **Ohne SharePoint** legst du die Mappen per SFTP/WinSCP nach
+  `/opt/socca-tools/socca-cockpit/data/` — der Container findet sie dort.
+- **Internet für SharePoint:** Der Container *worker* braucht ausgehend HTTPS
+  zu Microsoft. Geht der Server über einen Proxy, in `docker-compose.yml`
+  die Zeile `HTTPS_PROXY` aktivieren.
+- **Seite nicht erreichbar?** `docker compose ps` — beide Container müssen
+  *running* sein. Ist eine Firewall aktiv (`sudo ufw status`), Port freigeben:
+  `sudo ufw allow 8001/tcp`.
+
+---
+
+## Einrichtung ohne Docker (direkt auf dem Server)
+
+```bash
+# 1. Repository ablegen
+sudo mkdir -p /srv/socca-cockpit
+sudo chown $USER /srv/socca-cockpit
+git clone <euer-repo> /srv/socca-cockpit
+cd /srv/socca-cockpit
 
 # 2. Python-Umgebung
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
-# 3. Erster Lauf von Hand (dauert ein bis zwei Minuten)
+# 3. Datenquelle: SharePoint-Zugang einrichten (Abschnitt „Dateien direkt
+#    aus SharePoint holen“) — oder die Mappen per SFTP nach data/ legen
+
+# 4. Erster Lauf von Hand (dauert ein bis zwei Minuten)
 PYTHON=.venv/bin/python ./update.sh --force
 
-# 4. nginx
+# 5. nginx
 sudo cp deploy/nginx-socca-cockpit.conf /etc/nginx/sites-available/socca-cockpit
 sudo nano /etc/nginx/sites-available/socca-cockpit     # Domain und Pfade anpassen
 sudo ln -s ../sites-available/socca-cockpit /etc/nginx/sites-enabled/
@@ -121,10 +213,10 @@ sudo apt install apache2-utils
 sudo htpasswd -c /etc/nginx/.htpasswd-cockpit justus   # weitere ohne -c anlegen
 sudo nginx -t && sudo systemctl reload nginx
 
-# 5. Zertifikat
+# 6. Zertifikat
 sudo certbot --nginx -d cockpit.socca.example
 
-# 6. Cron
+# 7. Cron
 crontab -e        # Zeile aus deploy/socca-cockpit.cron übernehmen
 ```
 
@@ -132,12 +224,191 @@ Wenn `update.sh` aus dem Cron läuft, muss `PYTHON` gesetzt sein, damit die
 virtuelle Umgebung genutzt wird:
 
 ```cron
-7 * * * * PYTHON=/srv/socca-tools/socca-cockpit/.venv/bin/python /srv/socca-tools/socca-cockpit/update.sh >/dev/null 2>&1
+7 * * * * PYTHON=/srv/socca-cockpit/.venv/bin/python /srv/socca-cockpit/update.sh >/dev/null 2>&1
 ```
 
 ---
 
-## Die Dateien aktuell halten
+## Dateien direkt aus SharePoint holen (empfohlen)
+
+Der Server meldet sich mit einer **eigenen App-Registrierung** bei Microsoft
+365 an — nicht mit deinem Konto — und darf ausschließlich die Site
+**SOCCASales lesen**. Vor jedem Lauf fragt `fetch_sharepoint.py` die
+Änderungskennung beider Dateien ab (ein kurzer Aufruf). Nur wenn sich eine
+Datei geändert hat, wird sie geladen, zuerst in eine Zwischendatei, geprüft
+und erst dann in `data/` getauscht. Fällt SharePoint aus, bleibt das Cockpit
+auf dem letzten Stand.
+
+Abgeholt werden aus der Bibliothek *Freigegebene Dokumente* der Site
+SOCCASales, Hauptordner:
+
+- `Sales.xlsb`
+- `C_AP.xlsx`
+
+Achtung: Im Unterordner `Sales_19082025/` liegt eine ältere `Sales.xlsb`.
+Deshalb wird der genaue Pfad eingetragen, nicht nach dem Namen gesucht.
+
+Einmalig brauchst du dafür rund 20 Minuten und ein Admin-Konto für
+Microsoft 365.
+
+### Schritt 1 — App registrieren
+
+1. [entra.microsoft.com](https://entra.microsoft.com) öffnen, oben in der
+   Suche *App-Registrierungen* eingeben, dort *Neue Registrierung*.
+2. Name: `SOCCA Cockpit Server`. Unterstützte Kontotypen: *Nur Konten in
+   diesem Organisationsverzeichnis*. Umleitungs-URI leer lassen.
+   *Registrieren*.
+3. Auf der Übersichtsseite notieren:
+   - **Anwendungs-ID (Client)** → `SP_CLIENT_ID`
+   - **Verzeichnis-ID (Mandant)** → `SP_TENANT_ID`
+
+### Schritt 2 — Geheimen Schlüssel anlegen
+
+1. In der App: *Zertifikate & Geheimnisse → Geheime Clientschlüssel → Neuer
+   geheimer Clientschlüssel*.
+2. Beschreibung `Linux-Server`, Ablauf **24 Monate**.
+3. Die Spalte **Wert** sofort kopieren → `SP_CLIENT_SECRET`. Der Wert wird
+   nur dieses eine Mal angezeigt. Nicht die *Geheimnis-ID* nehmen.
+4. Ablaufdatum in den Kalender eintragen, mit zwei Wochen Vorlauf. Läuft der
+   Schlüssel ab, meldet das Log *„Client-Secret ist abgelaufen“*; dann hier
+   einen neuen anlegen und in `sharepoint.env` tauschen.
+
+### Schritt 3 — Berechtigung vergeben
+
+1. In der App: *API-Berechtigungen → Berechtigung hinzufügen → Microsoft
+   Graph → Anwendungsberechtigungen*.
+2. **Sites.Selected** suchen, anhaken, *Berechtigungen hinzufügen*.
+3. *Administratorzustimmung für SOCCA GROUP erteilen* → Ja. Der Status muss
+   auf grün *Gewährt* stehen.
+4. Die voreingestellte delegierte Berechtigung `User.Read` wird nicht
+   gebraucht und kann entfernt werden.
+
+`Sites.Selected` allein erlaubt noch **gar nichts**. Welche Site die App
+lesen darf, legt erst Schritt 4 fest.
+
+### Schritt 4 — Die Site SOCCASales für die App freigeben
+
+Das geht im Graph Explorer, angemeldet mit deinem Admin-Konto:
+
+1. [developer.microsoft.com/graph/graph-explorer](https://developer.microsoft.com/graph/graph-explorer)
+   öffnen, oben rechts anmelden.
+2. Einmalig die Berechtigung erteilen: *Berechtigungen ändern* (bzw. das
+   Zahnrad → *Select permissions*), `Sites.FullControl.All` suchen,
+   *Zustimmen*.
+3. Site-ID abfragen — Methode **GET**, Adresse:
+
+   ```
+   https://graph.microsoft.com/v1.0/sites/socca.sharepoint.com:/sites/SOCCASales
+   ```
+
+   *Abfrage ausführen*. Aus der Antwort den Wert von `"id"` kopieren
+   (Form `socca.sharepoint.com,xxxxxxxx-…,yyyyyyyy-…`).
+4. Freigabe setzen — Methode **POST**, Adresse (ID einsetzen):
+
+   ```
+   https://graph.microsoft.com/v1.0/sites/<SITE-ID>/permissions
+   ```
+
+   Anforderungstext (Client-ID aus Schritt 1 einsetzen):
+
+   ```json
+   {
+     "roles": ["read"],
+     "grantedToIdentities": [
+       { "application": { "id": "<SP_CLIENT_ID>", "displayName": "SOCCA Cockpit Server" } }
+     ]
+   }
+   ```
+
+   *Abfrage ausführen*. Antwort **201 Created** heißt: fertig.
+5. Zur Kontrolle dieselbe Adresse mit **GET** — die App muss mit Rolle
+   `read` in der Liste stehen.
+6. Die Zustimmung für den Graph Explorer (`Sites.FullControl.All`) kannst du
+   danach unter *Enterprise-Anwendungen → Graph Explorer → Berechtigungen*
+   wieder entziehen.
+
+**Einfachere, aber breitere Alternative:** In Schritt 3 statt
+`Sites.Selected` die Berechtigung `Sites.Read.All` nehmen und Schritt 4
+auslassen. Dann darf die App **alle** SharePoint-Sites der SOCCA GROUP lesen —
+funktioniert sofort, gibt aber mehr frei als nötig. Nur mit dieser
+Berechtigung lassen sich statt der Pfade auch Freigabelinks in
+`sharepoint.env` eintragen.
+
+### Schritt 5 — Server einrichten
+
+```bash
+cd /srv/socca-cockpit
+cp deploy/sharepoint.env.vorlage sharepoint.env
+chmod 600 sharepoint.env
+nano sharepoint.env        # SP_TENANT_ID, SP_CLIENT_ID, SP_CLIENT_SECRET eintragen
+```
+
+Site, Bibliothek und Dateipfade sind in der Vorlage schon richtig gesetzt.
+`sharepoint.env` enthält den geheimen Schlüssel und ist über `.gitignore` vom
+Repository ausgeschlossen.
+
+Verbindung testen, ohne etwas zu laden:
+
+```bash
+.venv/bin/python fetch_sharepoint.py --check
+```
+
+Erwartete Ausgabe:
+
+```
+Site: SOCCA Sales · Bibliothek: Freigegebene Dokumente
+SALES   Sales.xlsb  27.7 MB  geändert 25.09.2026 16:41 von Justus Wenzel  · würde geladen
+CAP     C_AP.xlsx  …   MB  geändert …                von …              · würde geladen
+```
+
+Dann der erste echte Lauf:
+
+```bash
+PYTHON=.venv/bin/python ./update.sh --force
+tail -20 .state/update.log
+```
+
+Mit Docker lauten die beiden Befehle:
+
+```bash
+docker compose exec worker python3 fetch_sharepoint.py --check
+docker compose exec worker bash update.sh --force
+```
+
+Ab jetzt erledigt der Cron alles. Sobald `sharepoint.env` existiert, holt
+`update.sh` die Dateien aus SharePoint und ignoriert, was sonst in `data/`
+liegt. Umbenennen oder Löschen von `sharepoint.env` schaltet zurück auf den
+Weg über `data/`.
+
+Der Server braucht ausgehend HTTPS zu `login.microsoftonline.com`,
+`graph.microsoft.com` und `*.sharepoint.com`. Steht er hinter einem Proxy,
+genügt die Umgebungsvariable `HTTPS_PROXY` in der Cron-Zeile.
+
+### Wie aktuell ist das Cockpit?
+
+Excel speichert auf SharePoint automatisch. Der Cron schaut stündlich nach,
+also ist das Cockpit höchstens eine Stunde plus zwei Minuten Rechenzeit
+hinter der Mappe. Wer es schneller will, stellt die Cron-Zeile auf
+`*/15 * * * *` — die Nachfrage kostet nur Millisekunden, gerechnet wird nur
+bei Änderung.
+
+### Wenn der Abruf klemmt
+
+`fetch_sharepoint.py` übersetzt die häufigen Fehler in Klartext, im Log und
+bei `--check`:
+
+| Meldung | Ursache |
+|---|---|
+| *Client-Secret ist falsch* | Die Secret-ID statt des Werts eingetragen, oder Tippfehler |
+| *Client-Secret ist abgelaufen* | Schritt 2 wiederholen |
+| *App … nicht gefunden* | Client-ID oder Tenant-ID vertauscht |
+| *Kein Zugriff auf die Site* | Schritt 4 fehlt, oder die Administratorzustimmung aus Schritt 3 |
+| *„Sales.xlsb“ nicht gefunden …* | Datei umbenannt oder verschoben; die Meldung listet, was im Ordner liegt |
+| *… Bytes geladen, erwartet …* | Download abgebrochen; die alte Datei bleibt, der nächste Lauf versucht es neu |
+
+---
+
+## Ohne SharePoint: Dateien per SFTP ablegen
 
 Welche Namen und Formate `update.sh` findet, steht oben unter *Zuerst: mit
 den aktuellen Dateien starten*. Kurz: Name enthält `Sales` bzw. `C_AP`, die
@@ -148,14 +419,14 @@ Drei Wege, die Dateien dorthin zu bekommen:
 **WinSCP mit Ordnerüberwachung.** Der bequemste Weg unter Windows. In WinSCP
 eine Sitzung zum Server öffnen, dann *Befehle → Verzeichnisse laufend
 abgleichen*, lokal den Ordner wählen, in dem du die beiden Mappen speicherst,
-als Ziel `/srv/socca-tools/socca-cockpit/data`. Ab dann lädt WinSCP jede Speicherung
+als Ziel `/srv/socca-cockpit/data`. Ab dann lädt WinSCP jede Speicherung
 automatisch hoch. Du arbeitest wie bisher in Excel, der Rest passiert von
 selbst.
 
 **scp von Hand.** Wenn du lieber bewusst auslöst:
 
 ```bash
-scp Sales.xlsx C_AP.xlsx user@server:/srv/socca-tools/socca-cockpit/data/
+scp Sales.xlsx C_AP.xlsx user@server:/srv/socca-cockpit/data/
 ```
 
 **rsync über eine Aufgabe.** Wenn die Mappen ohnehin auf einem Netzlaufwerk
@@ -182,28 +453,27 @@ nie eine halb fertige Seite.
 
 ## Arbeiten mit Cursor und GitHub
 
-Das Cockpit ist kein eigenes Repository. Es liegt als Ordner `socca-cockpit/`
-in **SOCCA-Tools** (`git@github.com:SOCCA-AI-Admin/SOCCA-Tools.git`).
-Gearbeitet wird in diesem Ordner; Commit und Push kommen aus der
-Repository-Wurzel.
+Ins Repository gehört der Code, **nicht die Daten**. Die `.gitignore` sorgt
+dafür: `data/`, `web/` und `.state/` bleiben draußen. Die Mappe enthält
+Umsätze, Margen und Personalstände — die haben auf GitHub nichts verloren,
+auch nicht in einem privaten Repository.
 
-Ins Repository gehört der Code, **nicht die Daten**. Die `.gitignore` in
-diesem Ordner sorgt dafür: `data/`, `web/` und `.state/` bleiben draußen.
-Die Mappe enthält Umsätze, Margen und Personalstände — die haben auf GitHub
-nichts verloren, auch nicht in einem privaten Repository.
+Erstmals ins Repository bringen (lokal, im entpackten Ordner):
 
 ```bash
-# in der Wurzel von SOCCA-Tools
-git status            # prüfen: nichts aus socca-cockpit/data/ oder socca-cockpit/web/
-git add socca-cockpit
-git commit -m "SOCCA Sales Cockpit als eigenes Tool"
-git push
+git init -b main
+git add .
+git status            # prüfen: nichts aus data/ oder web/ dabei
+git update-index --chmod=+x update.sh fetch_sharepoint.py   # unter Windows nötig
+git commit -m "SOCCA Sales Cockpit"
+git remote add origin git@github.com:<organisation>/socca-cockpit.git   # privates Repo
+git push -u origin main
 ```
 
 Der Kreislauf:
 
 ```
-Cursor (lokal, Ordner socca-cockpit)  →  git push  →  Server: git pull  →  ./update.sh --force
+Cursor (lokal)  →  git push  →  Server: git pull  →  ./update.sh --force
 ```
 
 Zum lokalen Ausprobieren brauchst du nur eine Kopie der beiden Mappen in
@@ -291,6 +561,10 @@ greift dann Deutsch.
 | `i18n/make_i18n.py` | Erzeugt `i18n.js` neu — hier werden Übersetzungen geändert |
 | `geo/make_geo.py` | Erzeugt `geo.js` neu, falls der Kartenausschnitt geändert wird |
 | `update.sh` | Der Wächter: prüft auf Änderung, baut, protokolliert |
+| `fetch_sharepoint.py` | Holt die Mappen aus SharePoint, nur bei Änderung |
+| `deploy/sharepoint.env.vorlage` | Vorlage für den SharePoint-Zugang (`sharepoint.env`) |
+| `docker-compose.yml` | Betrieb mit Docker: Container *worker* und *web* |
+| `deploy/docker/` | Dockerfile, Startskript des Workers, nginx-Konfiguration |
 | `reports.js` | Monatsvergleich, Team und Country Status Report |
 | `deploy/AP_Leads.vorlage.csv` | Vorlage für die optionale Plandatei der Leads |
 
