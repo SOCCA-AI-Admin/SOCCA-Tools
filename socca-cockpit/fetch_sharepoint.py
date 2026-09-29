@@ -308,7 +308,15 @@ def main(argv):
             if required:
                 raise Fail(f'{cfgkey} ist leer')
             continue
-        item = resolve_item(token, drive, ref)
+        if ref in ('_', '-'):
+            continue
+        try:
+            item = resolve_item(token, drive, ref)
+        except Fail as e:
+            if required:
+                raise
+            err(f'Hinweis: optionale Datei {cfgkey} übersprungen — {e}')
+            continue
         if 'file' not in item:
             raise Fail(f'„{ref}“ ist ein Ordner, keine Datei')
         target = DATA / item['name']

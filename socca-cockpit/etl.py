@@ -337,8 +337,11 @@ def read_combit(path):
     """Anfragen und Angebote, tagesgenau, je Team und je Hotel.
 
     Anfragen  Belegart 'Anfrage', dedupliziert je Ansprechpartner x Team x
-              AP-Jahr; der frueheste Eintrag zaehlt. Diese Regel reproduziert
-              das Blatt 'Leads' fuer 2024 auf rund vier Prozent genau.
+              AP-Jahr; der frueheste Eintrag zaehlt. Das entspricht der
+              Spalte 'einfach' in C_AP (unique Leads).
+              Je Hotel zaehlt eine Anfrage bei JEDEM angefragten Hotel, einmal
+              je Ansprechpartner x Team x AP-Jahr x Hotel. Die Summe ueber die
+              Hotels ist deshalb groesser als die Zahl der unique Leads.
     Angebote  Belegart 'Angebot', datiert auf das Versanddatum, ersatzweise
               auf das Anfragedatum.
     Web       Quelle 'website' oder Erfassung ueber das Webformular.
@@ -346,6 +349,7 @@ def read_combit(path):
     nicht ausgegeben.
     """
     anfragen, angebote = {}, []
+    hotel_anfragen = {}          # (mail, team, AP, WebID) -> (Datum, web)
     for row in combit_rows(path):
         team = text(row.get('Team'))
         herk = norm_country(text(row.get('KundenHerkunft')))
@@ -364,6 +368,11 @@ def read_combit(path):
             prev = anfragen.get(key)
             if prev is None or a < prev[0]:
                 anfragen[key] = (a, team, web, wid, herk, ziel)
+            if wid:
+                hk = key + (wid,)
+                hp = hotel_anfragen.get(hk)
+                if hp is None or a < hp[0]:
+                    hotel_anfragen[hk] = (a, web)
         elif art == 'Angebot':
             o = as_date(row.get('AngebotVersandtDatum'))
             if o is None or o.year < 2010:
@@ -378,8 +387,8 @@ def read_combit(path):
             r = by_team[(dayidx(a), team, herk, ziel)]
             r[0] += 1
             r[1] += 1 if web else 0
-        if wid:
-            r = by_hotel[(dayidx(a), wid)]; r[0] += 1; r[1] += 1 if web else 0
+    for (_, _, _, wid), (a, web) in hotel_anfragen.items():
+        r = by_hotel[(dayidx(a), wid)]; r[0] += 1; r[1] += 1 if web else 0
     for o, team, wid, herk, ziel in angebote:
         if team:
             by_team[(dayidx(o), team, herk, ziel)][2] += 1

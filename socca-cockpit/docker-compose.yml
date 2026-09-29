@@ -26,6 +26,25 @@ services:
     volumes:
       - ./:/app
 
+  # Beantwortet Fragen aus dem Feld „Frag das Cockpit“ mit Claude.
+  # Ohne anthropic.env läuft er, aber das Fragefeld bleibt ausgeblendet.
+  ask:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    image: socca-cockpit-worker
+    restart: unless-stopped
+    user: "${COCKPIT_UID:-1000}:${COCKPIT_GID:-1000}"
+    command: ["python3", "/app/ask_server.py"]
+    environment:
+      TZ: Europe/Berlin
+      # Nur falls der Server über einen Proxy ins Internet geht:
+      # HTTPS_PROXY: http://proxy.example:3128
+    volumes:
+      - ./:/app
+    depends_on:
+      - worker
+
   # Liefert die fertige Seite aus — ohne Passwort, für alle im internen Netz.
   web:
     image: nginx:1.27-alpine

@@ -113,12 +113,14 @@ So läuft das Cockpit neben der bestehenden App: gleiche IP, eigener Port.
 | SOCCA Sales Cockpit | `http://10.10.20.60:8001` |
 | Projektordner | `/opt/socca-tools/socca-cockpit` |
 
-Zwei Container, beschrieben in `docker-compose.yml`:
+Drei Container, beschrieben in `docker-compose.yml`:
 
 - **worker** prüft alle 15 Minuten, ob sich die Mappen geändert haben, und
   rechnet nur dann neu (`update.sh`). Quelle ist SharePoint, sobald
   `sharepoint.env` existiert, sonst der Ordner `data/`. Der Projektordner ist
   eingebunden — ein `git pull` wirkt ohne Neubau.
+- **ask** beantwortet Fragen aus dem Feld *Frag das Cockpit* (siehe unten).
+  Ohne `anthropic.env` läuft er still mit, das Feld bleibt ausgeblendet.
 - **web** liefert die fertige Seite auf Port 8001 aus — ohne Passwort, für
   alle im internen Netz.
 
@@ -182,6 +184,70 @@ Die Container starten nach einem Neustart des Servers von selbst.
 - **Seite nicht erreichbar?** `docker compose ps` — beide Container müssen
   *running* sein. Ist eine Firewall aktiv (`sudo ufw status`), Port freigeben:
   `sudo ufw allow 8001/tcp`.
+
+---
+
+## Frag das Cockpit (Freitext-Fragen mit Claude)
+
+Oben im Cockpit gibt es ein Fragefeld. Man stellt eine Frage in eigenen
+Worten, in jeder der neun Sprachen, und bekommt eine kurze Antwort mit
+Tabelle. Beispiele: *„Welche drei Hotels in Kroatien hatten im GJ 2025/26 die
+meisten Anfragen?“*, *„Wie steht FUNO gegenüber dem Vorjahr?“*
+
+**So funktioniert es.** Der Container *ask* nimmt die Frage entgegen und
+reicht sie an die Claude API weiter. Claude rechnet nicht selbst, sondern
+ruft Abfragen auf dem Server auf (`cockpit_query.py`), die exakt wie das
+Cockpit rechnen — geprüft gegen die Kacheln des Cockpits. An Anthropic gehen
+nur die Frage und die Ergebnisse dieser Abfragen, keine Excel-Dateien,
+keine Kundennamen, keine Mail-Adressen. Unter jeder Antwort zeigt
+*So wurde gerechnet*, welche Abfragen gelaufen sind.
+
+### Einrichten
+
+1. In der Claude Console (platform.claude.com) einen API-Schlüssel im
+   Workspace *SOCCA Cockpit* anlegen.
+2. Auf dem Server:
+
+   ```bash
+   cd /opt/socca-tools/socca-cockpit
+   cp deploy/anthropic.env.vorlage anthropic.env
+   chmod 600 anthropic.env
+   nano anthropic.env              # ANTHROPIC_API_KEY=sk-ant-… eintragen
+   # Läuft der Container nicht als root (siehe .env, COCKPIT_UID):
+   # chown <UID>:<GID> anthropic.env
+   docker compose up -d --build
+   ```
+
+3. Seite neu laden (Strg+F5). Das Fragefeld erscheint, sobald der Container
+   *ask* läuft und einen Schlüssel findet. Ohne `anthropic.env` bleibt es
+   ausgeblendet; das übrige Cockpit ist davon nicht betroffen.
+
+### Einstellungen in `anthropic.env`
+
+| Zeile | Bedeutung |
+|---|---|
+| `ASK_MODEL` | `claude-sonnet-5-5` (Standard) oder günstiger `claude-haiku-4-5-20251001` |
+| `ASK_DAILY_LIMIT` | Höchstzahl Fragen pro Tag für alle zusammen, Standard 200 |
+| `ASK_MAX_TOKENS` | Länge der Antwort, Standard 1500 |
+| `ASK_LOG_QUESTIONS` | `ja` schreibt die Fragen ins Protokoll `.state/ask.log` |
+
+Änderungen wirken bei der nächsten Frage, ohne Neustart.
+
+### Kosten und Kontrolle
+
+- Pro Frage meist 2–4 Cent mit Sonnet, etwa die Hälfte mit Haiku.
+- `.state/ask.log` zeigt je Frage Dauer, Tokens und — wenn eingeschaltet —
+  den Wortlaut. Der Verbrauch in Dollar steht in der Claude Console.
+- Das Tageslimit schützt das Budget, auch wenn alle im Netz fragen können.
+  Zusätzlich greift das Limit des Workspace in der Console.
+
+### Wenn etwas klemmt
+
+| Beobachtung | Ursache |
+|---|---|
+| Fragefeld erscheint nicht | `docker compose ps` — läuft *ask*? `docker compose logs ask` sagt, ob ein Schlüssel gefunden wurde. Rechte: `anthropic.env` muss für den Container-Benutzer lesbar sein |
+| „konnte nicht beantwortet werden“ | `tail .state/ask.log` — häufig: Guthaben leer, Schlüssel falsch, Workspace-Limit erreicht, kein Internet (dann `HTTPS_PROXY` in `docker-compose.yml`) |
+| „Tageslimit erreicht“ | `ASK_DAILY_LIMIT` erhöhen oder bis morgen warten |
 
 ---
 
@@ -562,7 +628,10 @@ greift dann Deutsch.
 | `update.sh` | Der Wächter: prüft auf Änderung, baut, protokolliert |
 | `fetch_sharepoint.py` | Holt die Mappen aus SharePoint, nur bei Änderung |
 | `deploy/sharepoint.env.vorlage` | Vorlage für den SharePoint-Zugang (`sharepoint.env`) |
-| `docker-compose.yml` | Betrieb mit Docker: Container *worker* und *web* |
+| `docker-compose.yml` | Betrieb mit Docker: Container *worker*, *ask* und *web* |
+| `ask_server.py` | Frage-Server für „Frag das Cockpit“, spricht mit der Claude API |
+| `cockpit_query.py` | Rechnet die Kennzahlen für Claude — gleiche Definitionen wie das Cockpit |
+| `deploy/anthropic.env.vorlage` | Vorlage für den API-Schlüssel (`anthropic.env`) |
 | `deploy/docker/` | Dockerfile, Startskript des Workers, nginx-Konfiguration |
 | `reports.js` | Monatsvergleich, Team und Country Status Report |
 | `deploy/AP_Leads.vorlage.csv` | Vorlage für die optionale Plandatei der Leads |

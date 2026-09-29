@@ -10,7 +10,9 @@ artifact_body.html
 __pycache__/
 .venv/
 # Zugangsdaten für SharePoint
-sharepoint.env*
+/sharepoint.env*
 # Docker: lokale Einstellungen und Passwörter
 .env
 .htpasswd
+# Zugang zur Claude API
+/anthropic.env*

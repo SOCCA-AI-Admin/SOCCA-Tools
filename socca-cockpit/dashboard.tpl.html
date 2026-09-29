@@ -260,6 +260,31 @@ table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,tran
 .rp-foot{display:flex;flex-wrap:wrap;gap:6px var(--s-5);margin-top:var(--s-4);padding-top:var(--s-2);
   border-top:1px solid var(--rule);font-size:11.5px;color:var(--fg-muted)}
 #printArea{display:none}
+.ask{display:flex;flex-direction:column;gap:var(--s-3)}
+.ask-row{display:flex;gap:var(--s-2)}
+.ask-row input{flex:1;min-width:0;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--border);
+  border-radius:var(--r-md);background:var(--bg);color:var(--fg-strong)}
+.ask-row input:focus{outline:2px solid var(--s-ist);outline-offset:1px}
+.ask-row .chip{font-size:14px;padding:8px 18px}
+.ask-row .chip[disabled]{opacity:.55;cursor:progress}
+.ask-ex{display:flex;flex-wrap:wrap;gap:6px}
+.ask-ex .chip{font-weight:400;color:var(--fg-muted)}
+.ask-out{border-top:1px solid var(--rule);padding-top:var(--s-3);font-size:14.5px;line-height:1.55;color:var(--fg)}
+.ask-out p{margin:0 0 .6em}
+.ask-out ul,.ask-out ol{margin:0 0 .6em 1.3em;padding:0}
+.ask-out strong{color:var(--fg-strong)}
+.ask-out table{width:auto;min-width:0;border-collapse:collapse;margin:.4em 0 .8em;font-size:13px;font-variant-numeric:tabular-nums}
+.ask-out th,.ask-out td{border-bottom:1px solid var(--rule);padding:5px 10px;text-align:left}
+.ask-out th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-muted)}
+.ask-out td.num,.ask-out th.num{text-align:right}
+.ask-out .busy{color:var(--fg-muted)}
+.ask-out .err{color:var(--neg)}
+.ask-out details{margin-top:.4em;font-size:12.5px;color:var(--fg-muted);border:0;padding:0;background:none;box-shadow:none;border-radius:0}
+.ask-out summary{font-size:12.5px;font-weight:700;letter-spacing:0;text-transform:none;cursor:pointer;color:var(--fg-muted);padding:0}
+.ask-out details li{margin:.15em 0}
+.ask-out .tw{overflow-x:auto}
+.ask-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px var(--s-4);font-size:11.5px;color:var(--fg-muted)}
+@media (max-width:640px){.ask-row{flex-direction:column}}
 #rpToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;max-width:min(560px,calc(100vw - 32px));
   padding:12px 16px;border-radius:var(--r-lg);background:var(--fg-strong);color:var(--bg);font-size:13.5px;line-height:1.45;
   box-shadow:0 6px 24px rgba(0,0,0,.25)}
@@ -274,7 +299,7 @@ table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,tran
   @page{size:A4 landscape;margin:8mm}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:#fff}
-  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast{display:none !important}
+  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast,#s-ask{display:none !important}
   body:not(.printing) .wrap > section:not(#s-reports){display:none !important}
   body.printing .wrap{display:none !important}
   body.printing #printArea{display:block}
@@ -395,6 +420,26 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
 </div>
 
 <div class="wrap">
+
+  <section id="s-ask" hidden>
+    <div class="shead">
+      <h2 id="askTitle" data-i18n="ask.title"></h2>
+      <span class="hint" data-i18n="ask.hint"></span>
+    </div>
+    <div class="card ask">
+      <form id="askForm" class="ask-row" autocomplete="off">
+        <input type="text" id="askQ" maxlength="600" data-i18n-ph="ask.ph" aria-labelledby="askTitle">
+        <button class="chip" id="askBtn" type="submit" data-i18n="ask.btn"></button>
+      </form>
+      <div class="ask-ex" id="askEx">
+        <button type="button" class="chip sm" data-i18n="ask.ex1"></button>
+        <button type="button" class="chip sm" data-i18n="ask.ex2"></button>
+        <button type="button" class="chip sm" data-i18n="ask.ex3"></button>
+      </div>
+      <div class="ask-out" id="askOut" hidden></div>
+      <div class="ask-foot"><span id="askMeta"></span><span data-i18n="ask.note"></span></div>
+    </div>
+  </section>
 
   <section id="s-funnel">
     <div class="shead">
@@ -1453,6 +1498,85 @@ function renderMaps(){
     : t(MBY[metric].nl ? 'h.mapRegionNA' : 'h.mapHerk');
 }
 
+/* ============================ Frag das Cockpit ============================ */
+/* Nur sichtbar, wenn der Frage-Server läuft (Docker-Betrieb mit anthropic.env).
+   In der Einzeldatei und im Artefakt bleibt der Bereich ausgeblendet. */
+const ASK = {limit:0, remaining:0, busy:false};
+function escHTML(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function mdInline(s){
+  return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+          .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g,'$1<em>$2</em>')
+          .replace(/`([^`]+)`/g,'<code>$1</code>');
+}
+function mdToHtml(md){
+  const lines = escHTML(md||'').split(/\r?\n/);
+  let out='', i=0;
+  const isNum = c => /^[\s+\-−–]?[\d.,\s]+\s*(%|€|Tsd €|Mio\.? €|×|x)?$/.test(c.trim()) && /\d/.test(c);
+  while(i<lines.length){
+    const l=lines[i];
+    if(/^\s*\|/.test(l)){
+      const rows=[]; while(i<lines.length && /^\s*\|/.test(lines[i])){ rows.push(lines[i]); i++; }
+      const cells = r => r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      const body = rows.filter(r=>!/^\s*\|?[\s:|-]+\|?\s*$/.test(r));
+      if(!body.length) continue;
+      const head=cells(body[0]), rest=body.slice(1).map(cells);
+      const numCol = head.map((_,k)=> rest.length && rest.every(r=>!r[k] || isNum(r[k])));
+      out += '<div class="tw"><table><thead><tr>'+head.map((h,k)=>`<th${numCol[k]?' class="num"':''}>${mdInline(h)}</th>`).join('')+'</tr></thead><tbody>'+
+             rest.map(r=>'<tr>'+head.map((_,k)=>`<td${numCol[k]?' class="num"':''}>${mdInline(r[k]||'')}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';
+      continue;
+    }
+    if(/^\s*[-*•]\s+/.test(l)){
+      out+='<ul>'; while(i<lines.length && /^\s*[-*•]\s+/.test(lines[i])){ out+='<li>'+mdInline(lines[i].replace(/^\s*[-*•]\s+/,''))+'</li>'; i++; } out+='</ul>'; continue;
+    }
+    if(/^\s*\d+[.)]\s+/.test(l)){
+      out+='<ol>'; while(i<lines.length && /^\s*\d+[.)]\s+/.test(lines[i])){ out+='<li>'+mdInline(lines[i].replace(/^\s*\d+[.)]\s+/,''))+'</li>'; i++; } out+='</ol>'; continue;
+    }
+    if(!l.trim()){ i++; continue; }
+    const para=[]; while(i<lines.length && lines[i].trim() && !/^\s*(\||[-*•]\s|\d+[.)]\s)/.test(lines[i])){ para.push(lines[i].replace(/^#+\s*/,'')); i++; }
+    out+='<p>'+mdInline(para.join('<br>'))+'</p>';
+  }
+  return out;
+}
+function askMeta(sec){
+  const el=document.getElementById('askMeta');
+  el.textContent = sec!=null ? t('ask.meta',{s:nf(sec,1), r:ASK.remaining, n:ASK.limit})
+                             : t('ask.left',{r:ASK.remaining, n:ASK.limit});
+}
+async function askRun(q){
+  q=(q||'').trim(); if(q.length<3 || ASK.busy) return;
+  const out=document.getElementById('askOut'), btn=document.getElementById('askBtn');
+  ASK.busy=true; btn.disabled=true; out.hidden=false;
+  out.innerHTML=`<p class="busy">${escHTML(t('ask.busy'))}</p>`;
+  const ctx = {von: state.from? iso(state.from):null, bis: state.to? iso(state.to):null,
+               bereich: state.group, team: state.team||null, reiseland: state.dest||null,
+               herkunft: state.herk||null, region: state.region||null};
+  try{
+    const r = await fetch('api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+                                     body:JSON.stringify({question:q, lang:LANG, context:ctx})});
+    const j = await r.json().catch(()=>({}));
+    if(j.remaining!=null) ASK.remaining=j.remaining;
+    if(r.status===429){ out.innerHTML=`<p class="err">${escHTML(t('ask.limit',{n:ASK.limit}))}</p>`; askMeta(); return; }
+    if(!r.ok || !j.answer) throw new Error(j.error||r.status);
+    const steps = (j.steps||[]).length ? `<details><summary>${escHTML(t('ask.steps'))}</summary><ul>${
+      j.steps.map(x=>'<li>'+escHTML(x)+'</li>').join('')}</ul></details>` : '';
+    out.innerHTML = mdToHtml(j.answer) + steps;
+    askMeta(j.seconds);
+  }catch(e){
+    out.innerHTML=`<p class="err">${escHTML(t('ask.error'))}</p>`; askMeta();
+  }finally{ ASK.busy=false; btn.disabled=false; }
+}
+function initAsk(){
+  const sec=document.getElementById('s-ask');
+  if(!sec || location.protocol==='file:') return;
+  fetch('api/status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(s=>{
+    if(!s || !s.enabled) return;
+    ASK.limit=s.limit; ASK.remaining=s.remaining; sec.hidden=false; askMeta();
+  }).catch(()=>{});
+  const q=document.getElementById('askQ');
+  document.getElementById('askForm').onsubmit = e => { e.preventDefault(); askRun(q.value); };
+  document.querySelectorAll('#askEx button').forEach(b=>b.onclick=()=>{ q.value=b.textContent; askRun(q.value); });
+}
+
 /* ============================ Hotel ============================ */
 /* Buchungen und Leads einmal je Hotel vorsortieren — danach ist die
    Detailansicht unabhängig von der Datenmenge sofort da. */
@@ -1704,6 +1828,7 @@ buildLocale();
 initControls();
 initHotel();
 initReports();
+initAsk();
 document.querySelectorAll('#viewSw [data-v]').forEach(b=>b.onclick=()=>setView(b.dataset.v));
 applyLabels();
 applyPreset('12m');
