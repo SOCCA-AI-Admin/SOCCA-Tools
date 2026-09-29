@@ -239,7 +239,8 @@ function miniChart(M, p, id, withAP){
   const pts=[];
   for(let m=M-11;m<=M;m++){
     const c=rAgg(m,m,p), v=rAgg(m-12,m-12,p);
-    pts.push({m, c:rv(id,c), v:rv(id,v), ap: withAP ? c.apTeams : null});
+    pts.push({m, c:rv(id,c), v:rv(id,v),
+              ap: withAP ? (id==='leads' ? (c.hasApLeads ? c.apLeads : null) : c.apTeams) : null});
   }
   const W0=560,H0=170,PL=44,PR=8,PT=10,PB=24;
   const hi=Math.max(1e-9,...pts.map(x=>Math.max(x.c||0,x.v||0,x.ap||0)));
@@ -299,20 +300,29 @@ function splitTable(M, p, dim, limit, label){
   return h;
 }
 
-/* Annual-Planning-Kacheln für den TSR */
-function apTiles(M, team){
+/* Annual-Planning-Kacheln für den TSR: Teams und Anfragen gegen AP */
+function apTiles(M, team, kind){
   const fy0=fyStart(M), fy1=fy0+11;
   const mon=rAgg(M,M,{team}), ytd=rAgg(fy0,M,{team}), full=rAgg(fy0,fy1,{team});
-  const q = ytd.apTeams ? ytd.teams/ytd.apTeams : null;
-  const rest = full.apTeams - ytd.teams;
   const tile=(k,v,sub,cls='')=>`<div class="rtile ${cls}"><span class="k">${k}</span><span class="v">${v}</span><span class="sub">${sub}</span></div>`;
-  const d = mon.teams-mon.apTeams;
-  return `<div class="rtiles">`+
-    tile(t('rp.apMonth'), nf(mon.teams,0), `${t('t.ap')} ${nf(mon.apTeams,0)} · <span class="${d>=0?'pos':'neg'}">${d>=0?'+':''}${nf(d,0)}</span>`)+
-    tile(t('rp.gjCum'), nf(ytd.teams,0), `${t('t.ap')} ${nf(ytd.apTeams,0)} · ${t('rp.fyLabel',{a:monLabel(fy0),b:monLabel(M)})}`)+
-    tile(t('rp.attain'), q===null?'—':nf(q*100,0)+' %', q===null?'':(q>=1?t('rp.onTrack'):t('rp.behind')), q===null?'':(q>=1?'ok':(q>=0.9?'':'bad')))+
-    tile(t('rp.apFY'), nf(full.apTeams,0), `${t('rp.remaining')}: ${nf(Math.max(0,rest),0)}`)+
-  `</div>`;
+  const rowOf=(ist, plan, kMon, kFY, kPlanFY)=>{
+    const [im, iy]=ist, [pm, py, pf]=plan;
+    const q = py ? iy/py : null, d = im-pm, rest = pf - iy;
+    const ok = q!==null && Math.round(q*100)>=100;
+    return `<div class="rtiles">`+
+      tile(kMon, nf(im,0), `${t('t.ap')} ${nf(pm,0)} · <span class="${d>=0?'pos':'neg'}">${d>=0?'+':''}${nf(d,0)}</span>`)+
+      tile(kFY, nf(iy,0), `${t('t.ap')} ${nf(py,0)} · ${t('rp.fyLabel',{a:monLabel(fy0),b:monLabel(M)})}`)+
+      tile(t('rp.attain'), q===null?'—':nf(q*100,0)+' %', q===null?'':(ok?t('rp.onTrack'):t('rp.behind')), q===null?'':(ok?'ok':(q>=0.9?'':'bad')))+
+      tile(kPlanFY, nf(pf,0), `${t('rp.remaining')}: ${nf(Math.max(0,rest),0)}`)+
+    `</div>`;
+  };
+  if(kind==='leads'){
+    if(!full.hasApLeads) return `<p class="empty">${t('rp.noApLeads')}</p>`;
+    return rowOf([rv('leads',mon)??0, rv('leads',ytd)??0], [mon.apLeads, ytd.apLeads, full.apLeads],
+                 t('rp.leadsMonth'), t('rp.leadsFY'), t('rp.apLeadsFY'));
+  }
+  return rowOf([mon.teams, ytd.teams], [mon.apTeams, ytd.apTeams, full.apTeams],
+               t('rp.apMonth'), t('rp.gjCum'), t('rp.apFY'));
 }
 
 /* ======================================================================
@@ -326,12 +336,14 @@ function reportTSR(M, team){
   const sheets = [
     `<div class="rgrid g2">
        <div class="rcard span2"><h4>${t('rp.kpis')}</h4><div class="tablewrap rtw">${k.html}</div></div>
-       <div class="rcard"><h4>${t('rp.apSection')} <span class="st">★</span></h4>${apTiles(M,team)}</div>
+       <div class="rcard"><h4>${t('rp.apSection')} · ${MBY.teams.n} <span class="st">★</span></h4>${apTiles(M,team,'teams')}</div>
        <div class="rcard"><h4>${t('rp.trendSection')} · ${MBY.teams.n} <span class="st">★</span></h4>${miniChart(M,p,'teams',true)}</div>
      </div>`,
     `<div class="rgrid g2">
        <div class="rcard"><h4>${t('rp.destSection')} · ${t('rp.last12')}</h4>${splitTable(M,p,'dest',10,t('ctl.dest'))}</div>
        <div class="rcard"><h4>${t('rp.hotelSection')} · ${t('rp.last12')} <span class="st">★</span></h4>${splitTable(M,p,'hotel',10,t('ho.hotel'))}</div>
+       <div class="rcard"><h4>${t('rp.apSection')} · ${MBY.leads.n} <span class="st">★</span></h4>${apTiles(M,team,'leads')}</div>
+       <div class="rcard"><h4>${t('rp.trendSection')} · ${MBY.leads.n} <span class="st">★</span></h4>${miniChart(M,p,'leads',true)}</div>
      </div>`];
   return page({
     kind: t('rp.tsr'), title: team,

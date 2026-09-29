@@ -584,12 +584,34 @@ heruntergeladenen `SOCCA_Sales_Cockpit.html` öffnet sich der Dialog direkt.
 
 Mit ★ markierte Kennzahlen und Abschnitte sind neu gegenüber dem Excel-Report.
 
-### AP für Leads
+### AP für Anfragen
 
-Die Mappe führt Annual Planning nur für Teams. Die Spalten *LeadsAP* im Blatt
-*AP* sind leer, deshalb fehlt im Monatsvergleich die AP-Zeile bei den Leads.
-Sie erscheint, sobald `data/AP_Leads.csv` existiert — Aufbau siehe
-`deploy/AP_Leads.vorlage.csv`, einmal im Jahr für das neue Geschäftsjahr pflegen.
+Das Cockpit berechnet die geplanten Anfragen je Team und Monat selbst, nach
+derselben Regel wie das Blatt *AP* der Mappe:
+
+> AP-Anfragen im Monat = AP-Teams des **Folgemonats** ÷ Buchungsquote des
+> Folgemonats im **Vorjahr**
+> Buchungsquote = Teams im Monat ÷ unique Anfragen („einfach“) im Vormonat
+
+Anfragen kommen rund einen Monat vor der Buchung. Für Juni gilt der Juli
+desselben AP-Zeitraums. Ohne geplante oder stattgefundene Buchungen gibt es
+keine AP-Anfragen. Gegen das Blatt *AP* geprüft: FUSU 2026/27, alle zwölf
+Monate identisch (Summe 891).
+
+Die AP-Anfragen erscheinen in der Kachel *Anfragen*, in den Vergleichs-
+panels, im Verlauf, im Monatsvergleich, im Team Status Report und im
+Fragefeld — je Team und Zeitraum. Bei Länder- oder Regionsfiltern bleiben
+sie leer, weil es den Plan nur je Team gibt.
+
+**Letzter Tag des Monats.** Die Formel im Blatt *AP* vergleicht das
+Anfragedatum (mit Uhrzeit) mit „<=31.MM.JJJJ“ bzw. „<=30.“. Dadurch fehlen
+dort die Anfragen vom letzten Tag des Monats. Das Cockpit rechnet
+standardmäßig genauso, damit die Zahlen übereinstimmen. Wird die Formel in
+der Mappe korrigiert, in `docker-compose.yml` beim *worker*
+`AP_LEADS_WIE_EXCEL: "0"` setzen — dann zählen ganze Monate.
+
+Eine Datei `data/AP_Leads.csv` (Team;Monat;Leads, Vorlage in `deploy/`)
+überschreibt einzelne berechnete Werte, etwa für manuell gesetzte Ziele.
 
 ## Sprachen
 
@@ -654,6 +676,9 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   oder Regionsfilter bleiben sie und alles daraus Abgeleitete leer.
 - Die **Region** aus Spalte H gibt es nur für Buchungen; Combit führt kein
   Bundesland.
+- **Anfragen und Angebote je Hotel** gibt es je Team und je Reiseland (Land
+  des Hotels), nicht je Kundenherkunft oder Region. Eine Anfrage zählt bei
+  jedem Hotel, das der Kunde angefragt hat.
 
 Neun von zehn Kennzahlen wurden gegen das Blatt `Report` der Mappe
 nachgerechnet und stimmen auf den Cent. Einzige Ausnahme ist

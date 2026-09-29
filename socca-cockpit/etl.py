@@ -381,19 +381,19 @@ def read_combit(path):
 
     # (Tag, Team, Herkunft, Reiseland) -> leads, web, offers
     by_team = defaultdict(lambda: [0, 0, 0])
-    by_hotel = defaultdict(lambda: [0, 0, 0])    # (Tag, Hotel) -> leads, web, offers
+    by_hotel = defaultdict(lambda: [0, 0, 0])    # (Tag, Hotel, Team) -> leads, web, offers
     for a, team, web, wid, herk, ziel in anfragen.values():
         if team:
             r = by_team[(dayidx(a), team, herk, ziel)]
             r[0] += 1
             r[1] += 1 if web else 0
-    for (_, _, _, wid), (a, web) in hotel_anfragen.items():
-        r = by_hotel[(dayidx(a), wid)]; r[0] += 1; r[1] += 1 if web else 0
+    for (_, team, _, wid), (a, web) in hotel_anfragen.items():
+        r = by_hotel[(dayidx(a), wid, team)]; r[0] += 1; r[1] += 1 if web else 0
     for o, team, wid, herk, ziel in angebote:
         if team:
             by_team[(dayidx(o), team, herk, ziel)][2] += 1
         if wid:
-            by_hotel[(dayidx(o), wid)][2] += 1
+            by_hotel[(dayidx(o), wid, team)][2] += 1
     return by_team, by_hotel
 
 
@@ -401,9 +401,8 @@ def read_combit(path):
 def read_ap_leads(path):
     """Optionale Plandatei fuer Leads: Team;Monat;Leads.
 
-    Die Mappe fuehrt Annual Planning nur fuer Teams; die Spalten LeadsAP
-    im Blatt AP sind leer. Wer Plan-Leads im Monatsvergleich sehen will,
-    legt diese Datei neben die Mappe. Monat als 2026-08 oder 08.2026.
+    Ueberschreibt einzelne berechnete AP-Anfragen (compute_ap_leads), z. B.
+    fuer manuell gesetzte Ziele. Monat als 2026-08 oder 08.2026.
     """
     out = []
     if not path or not os.path.exists(path):
@@ -428,6 +427,54 @@ def read_ap_leads(path):
     return out
 
 
+# ------------------------------------------------------------ AP-Anfragen
+# Wie im Blatt AP der Mappe: Die Anfragen für einen Monat ergeben sich aus
+# den geplanten Teams des FOLGEMONATS und der Buchungsquote dieses
+# Folgemonats im Vorjahr — Anfragen kommen rund einen Monat vor der Buchung.
+#
+#   BuQ(M)       = Teams im Monat M des Vorjahres
+#                  / unique Anfragen ("einfach") im Monat M-1 des Vorjahres
+#   AP-Anfragen(m) = AP-Teams(m+1) / BuQ(m+1)
+#
+# Juni: Folgemonat ist der Juli desselben AP-Zeitraums. Ohne geplante oder
+# stattgefundene Buchungen gibt es keine AP-Anfragen (0).
+#
+# Die Formel im Blatt AP vergleicht das Anfragedatum (mit Uhrzeit) mit
+# "<=31.MM.JJJJ" bzw. "<=30.". Dadurch fehlen dort die Anfragen vom letzten
+# Tag des Monats. AP_LEADS_WIE_EXCEL = True bildet das nach, damit die Werte
+# mit dem Blatt AP übereinstimmen; False zählt den ganzen Monat.
+AP_LEADS_WIE_EXCEL = os.environ.get('AP_LEADS_WIE_EXCEL', '1').strip() not in ('0', 'nein', 'false')
+
+
+def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
+    teams_m = defaultdict(float)                     # (Team, Monat) -> Teams
+    for b in wbd['bookings']:
+        if b['team']:
+            teams_m[(b['team'], monthidx(DAY0 + datetime.timedelta(days=b['d'])))] += b['teams'] or 0
+    leads_m = defaultdict(float)                     # (Team, Monat) -> unique Anfragen
+    for (d, team, _h, _z), v in by_team.items():
+        day = DAY0 + datetime.timedelta(days=d)
+        if excel_compat:
+            nxt = day + datetime.timedelta(days=1)
+            if nxt.day == 1:                         # letzter Tag des Monats fehlt im Blatt AP
+                continue
+        leads_m[(team, monthidx(day))] += v[0]
+    for mi, vals in wbd['leads_hist']:               # vor 2024 nur monatlich aus dem Blatt Leads
+        if mi < cut:
+            for team, v in vals.items():
+                leads_m[(team, mi)] += v or 0
+    ap = {(c, mi): v for mi, c, v in wbd['ap']}
+    out = []
+    for (team, m), _ in sorted(ap.items(), key=lambda x: (x[0][1], x[0][0])):
+        nxt = m + 1 if m % 12 != 5 else m - 11       # Juni -> Juli desselben AP-Zeitraums
+        plan = ap.get((team, nxt), 0) or 0
+        t_vj = teams_m.get((team, nxt - 12), 0)
+        l_vj = leads_m.get((team, nxt - 13), 0)
+        val = plan * l_vj / t_vj if plan > 0 and t_vj > 0 and l_vj > 0 else 0.0
+        out.append((m, team, val))
+    return out
+
+
 # --------------------------------------------------------------- Aufbau
 def build(xl, combit_path, outpath, ap_leads_path=None):
     wbd = read_workbook(xl)
@@ -439,7 +486,7 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
 
     # Hotels: Stammliste plus alles, was in Buchungen oder Combit auftaucht
     master = wbd['hotels']
-    seen = {b['hotel'] for b in wbd['bookings'] if b['hotel']} | {h for (_, h) in by_hotel}
+    seen = {b['hotel'] for b in wbd['bookings'] if b['hotel']} | {h for (_, h, _) in by_hotel}
     fallback = {}
     for b in wbd['bookings']:
         if b['hotel'] and b['hotel'] not in master and b['name']:
@@ -491,7 +538,8 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
 
     lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v]
                         for (d, t, h, z), v in by_team.items() if t in tix])
-    lead_hotel = sorted([[d, hix[h], *v] for (d, h), v in by_hotel.items() if h in hix])
+    # [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote]
+    lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v] for (d, h, t), v in by_hotel.items() if h in hix])
 
     def mrows(series, cut=None):
         out = []
@@ -504,6 +552,12 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
         return out
 
     cut = monthidx(datetime.date(*LEAD_CUT, 1))
+    # AP-Anfragen: berechnet wie im Blatt AP; eine AP_Leads.csv ersetzt einzelne Werte
+    apl = {(mi, c): v for mi, c, v in compute_ap_leads(wbd, by_team, cut)}
+    csv_rows = read_ap_leads(ap_leads_path)
+    for mi, c, v in csv_rows:
+        apl[(mi, c)] = v
+    ap_leads_rows = [[mi, tix[c], r2(v, 2)] for (mi, c), v in sorted(apl.items()) if c in tix]
     data = dict(
         meta=dict(
             generated=datetime.datetime.now().isoformat(timespec='seconds'),
@@ -521,7 +575,7 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
         propMonthly=mrows(wbd['props_hist'], cut),
         fte=mrows(wbd['fte']),
         ap=[[mi, tix[c], r2(v, 3)] for mi, c, v in wbd['ap'] if c in tix],
-        apLeads=[[mi, tix[c], r2(v, 2)] for mi, c, v in read_ap_leads(ap_leads_path) if c in tix],
+        apLeads=ap_leads_rows,
     )
     os.makedirs(os.path.dirname(os.path.abspath(outpath)), exist_ok=True)
     tmp = outpath + '.tmp'
@@ -537,7 +591,9 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     print(f'Leads je Hotel   {len(lead_hotel)} Zeilen')
     print(f'FTE              {len(data["fte"])} Zeilen')
     print(f'Annual Planning  {len(data["ap"])} Zeilen')
-    print(f'AP-Leads         {len(data["apLeads"])} Zeilen' + ('' if data['apLeads'] else ' (keine Datei)'))
+    print(f'AP-Anfragen      {len(data["apLeads"])} Zeilen, berechnet aus AP-Teams und Vorjahresquote'
+          + (' (wie Blatt AP, ohne letzten Monatstag)' if AP_LEADS_WIE_EXCEL else ' (ganze Monate)')
+          + (f', {len(csv_rows)} Werte aus AP_Leads.csv' if csv_rows else ''))
     print(f'-> {outpath}  {os.path.getsize(outpath)/1e6:.2f} MB')
 
 

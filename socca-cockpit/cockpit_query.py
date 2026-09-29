@@ -56,10 +56,15 @@ METRICS = {
     'ap_teams': ('Annual Planning: geplante Teams', lambda b: b['ap'], 'n'),
     'ap_delta': ('Teams minus Plan', lambda b: b['teams'] - b['ap'] if b['ap'] is not None else None, 'n'),
     'ap_pct':  ('Zielerreichung Teams = Teams / Plan', lambda b: b['teams'] / b['ap'] if b['ap'] else None, 'pct'),
+    'ap_leads': ('Annual Planning: geplante Anfragen (AP-Teams des Folgemonats / Buchungsquote Vorjahr, wie Blatt AP)',
+                 lambda b: b['apl'], 'n'),
+    'ap_leads_delta': ('Anfragen minus AP-Anfragen', lambda b: b['leads'] - b['apl'] if b['apl'] is not None and b['leads'] is not None else None, 'n'),
+    'ap_leads_pct': ('Zielerreichung Anfragen = Anfragen / AP-Anfragen', lambda b: b['leads'] / b['apl'] if b['apl'] and b['leads'] is not None else None, 'pct'),
 }
 LEAD_METRICS = {'leads', 'web', 'props', 'quote1', 'quote2', 'quote3', 'webq', 'leadfte'}
 FTE_METRICS = {'fte', 'leadfte', 'bookfte', 'teamfte', 'vkfte', 'dbfte'}
 AP_METRICS = {'ap_teams', 'ap_delta', 'ap_pct'}
+APL_METRICS = {'ap_leads', 'ap_leads_delta', 'ap_leads_pct'}
 
 GROUP_BY = ['none', 'team', 'team_group', 'month', 'quarter', 'calendar_year', 'fiscal_year',
             'destination', 'origin_country', 'region', 'hotel', 'sport']
@@ -106,7 +111,7 @@ def bucket_of(d, kind):
 
 def empty():
     return dict(book=0, teams=0.0, pax=0.0, nights=0.0, paxn=0.0, vk=0.0, ek=0.0, db=0.0,
-                leads=0, web=0, props=0, fte=None, ap=None)
+                leads=0, web=0, props=0, fte=None, ap=None, apl=None)
 
 
 class Cockpit:
@@ -156,8 +161,8 @@ class Cockpit:
                 'Anfragen sind unique: eine Mail-Adresse zählt einmal je Sales-Team und AP-Jahr. Auf Hotelebene zählt eine Anfrage bei jedem Hotel, das der Kunde angefragt hat — Summe der Hotels > Gesamtzahl.',
                 'Angebote werden je Angebotszeile gezählt, datiert auf das Versanddatum.',
                 'Für Regionen (Bundesländer/Kantone) und Sportarten gibt es keine Anfragen/Angebote, nur Buchungsdaten.',
-                'Anfragen je Hotel gibt es nicht zusammen mit einem Team-, Länder- oder Herkunftsfilter.',
-                'FTE und Annual Planning gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart.',
+                'Anfragen und Angebote je Hotel gibt es je Team und je Reiseland (= Land des Hotels), aber nicht je Herkunftsland, Region oder Sportart.',
+                'FTE und Annual Planning (Teams und Anfragen) gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart. AP-Anfragen je Monat = AP-Teams des Folgemonats / Buchungsquote des Folgemonats im Vorjahr (Teams ÷ unique Anfragen des Vormonats).',
             ],
             'teams': D['teams'],
             'team_groups': {k: v[0] for k, v in TEAM_GROUPS.items()},
@@ -309,7 +314,7 @@ class Cockpit:
         if group_by == 'hotel' and 'leads' in metrics:
             notes.append('Anfragen je Hotel: jede Anfrage zählt bei jedem angefragten Hotel; die Summe über Hotels ist größer als die unique Anfragen.')
         for m in metrics:
-            if m in FTE_METRICS | AP_METRICS and (spec['dest'] or spec['herk'] or spec['region']
+            if m in FTE_METRICS | AP_METRICS | APL_METRICS and (spec['dest'] or spec['herk'] or spec['region']
                                                    or spec['hotel'] or spec['sport']
                                                    or group_by in ('destination', 'origin_country', 'region', 'hotel', 'sport')):
                 notes.append(f'{m}: FTE/Plan gibt es nur je Team oder gesamt — hier leer.')
@@ -401,27 +406,48 @@ class Cockpit:
             b['teams'] += r[8]; b['pax'] += r[9]; b['nights'] += r[10]; b['paxn'] += r[9] * r[10]
 
         # ---- Anfragen / Angebote
+        # Je Hotel liegen sie je Team vor; Reiseland = Land des Hotels.
+        # Für Herkunft, Region und Sportart gibt es keine Anfragen.
         lead_na = bool(spec['region'] or spec['sport'] or g in ('region', 'sport'))
         hotel_mode = bool(spec['hotel'] or g == 'hotel')
-        if hotel_mode and (spec['dest'] or spec['herk'] or spec['teams'] != set(D['teams'])
-                           or g in ('team', 'team_group', 'destination', 'origin_country')):
+        if hotel_mode and (spec['herk'] or g == 'origin_country'):
             lead_na = True
         if lead_na:
             notes.append('Anfragen/Angebote sind für diese Kombination aus Filter und Gruppierung nicht verfügbar.')
             for b in out.values():
                 b['leads'] = b['web'] = b['props'] = None
         elif hotel_mode:
+            all_teams = spec['teams'] == set(D['teams'])
             for r in D['leadHotel']:
                 if r[0] < fi or r[0] > ti:
                     continue
                 if spec['hotel'] and r[1] not in spec['hotel']:
                     continue
+                land = self.hotel_by_idx[r[1]][2]
+                if spec['dest'] and land not in spec['dest']:
+                    continue
+                team = self._at(D['teams'], r[2])
+                if not all_teams and team not in spec['teams']:
+                    continue
                 d = kd(i2d(r[0]))
-                key = r[1] if g == 'hotel' else ('Gesamt' if g == 'none' else bucket_of(d, g))
+                if g == 'hotel':
+                    key = r[1]
+                elif g == 'team':
+                    key = team
+                elif g == 'team_group':
+                    key = self._group_of(team) if team else 'other'
+                elif g == 'destination':
+                    key = land
+                elif g in TIME_GROUPS:
+                    key = bucket_of(d, g)
+                else:
+                    key = 'Gesamt'
                 b = out[key]
-                b['leads'] += r[2]; b['web'] += r[3]; b['props'] += r[4]
+                b['leads'] += r[3]; b['web'] += r[4]; b['props'] += r[5]
             if f < datetime.date(2024, 1, 1):
                 notes.append('Anfragen je Hotel gibt es erst ab 01.01.2024.')
+            if spec['dest']:
+                notes.append('Anfragen/Angebote je Hotel: Reiseland = Land des Hotels.')
         else:
             for r in D['leadDaily']:
                 if r[0] < fi or r[0] > ti:
@@ -502,6 +528,15 @@ class Cockpit:
                 key = (team if g == 'team' else self._group_of(team) if g == 'team_group'
                        else bucket_of(kd(m2d(r[0])), g) if g in TIME_GROUPS else 'Gesamt')
                 out[key]['ap'] = (out[key]['ap'] or 0) + r[2]
+            for r in D.get('apLeads') or []:
+                if r[0] < mf or r[0] > mt:
+                    continue
+                team = self._at(D['teams'], r[1])
+                if team not in spec['teams']:
+                    continue
+                key = (team if g == 'team' else self._group_of(team) if g == 'team_group'
+                       else bucket_of(kd(m2d(r[0])), g) if g in TIME_GROUPS else 'Gesamt')
+                out[key]['apl'] = (out[key]['apl'] or 0) + r[2]
             if f.day != 1 or (t + datetime.timedelta(days=1)).day != 1:
                 notes.append('FTE und Plan werden für jeden berührten Monat voll gezählt.')
         return out
@@ -514,6 +549,10 @@ class Cockpit:
         if m in FTE_METRICS and not b.get('fte'):
             return None
         if m in AP_METRICS and b.get('ap') is None:
+            return None
+        if m in APL_METRICS and b.get('apl') is None:
+            return None
+        if m in ('ap_leads_delta', 'ap_leads_pct') and b.get('leads') is None:
             return None
         try:
             v = METRICS[m][1](b)
