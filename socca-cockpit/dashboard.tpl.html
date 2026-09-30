@@ -319,7 +319,7 @@ table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,tran
   .rgrid.g2{grid-template-columns:1fr 1fr}
   .tablewrap,.rtw{overflow:visible !important;max-height:none !important}
   table.rt{font-size:9px}
-  table.rt th,table.rt td{padding:2.5px 5px}
+  table.rt th,table.rt td{padding:2px 5px}
   table.rt thead th{font-size:8px}
   table.rt.cmp{font-size:8.2px}
   table.rt.cmp th,table.rt.cmp td{padding:2px 3px}
@@ -709,6 +709,7 @@ const maxDay = D.bookings.reduce((a,b)=>Math.max(a,b[0]),0);
 const minDay = D.bookings.reduce((a,b)=>Math.min(a,b[0]),1e9);
 const LAST = i2d(maxDay), FIRST = i2d(minDay);
 const LEAD_CUT_M = (2024-2019)*12;                       // ab hier tagesgenaue Leads
+const LEAD_CUT_D = d2i(new Date(2024,0,1));
 
 /* Teams nach Bereich gruppieren */
 const GROUPS = [
@@ -741,6 +742,10 @@ const M = [
   {id:'quote3',        k:'m.quote3', gk:'g.rates', f:b=>b.props? b.book/b.props:null, d:1, pct:true, nl:true},
   {id:'webq',     k:'m.webq', gk:'g.rates', f:b=>b.leads? b.web/b.leads :null, d:1, pct:true, nl:true},
   {id:'web',             k:'m.web', gk:'g.rates', f:b=>b.web,                 d:0, nl:true},
+  /* Buchungsquote auf Basis ALLER Anfragen (ohne Unique-Regel), erst ab 2024 */
+  {id:'leadsall', k:'m.leadsall', gk:'g.funnel', f:b=>b.bqNA? null : b.leadsAll, d:0, nl:true},
+  {id:'bqall',    k:'m.bqall',    gk:'g.rates',  f:b=>(!b.bqNA && b.leadsAll)? b.teams/b.leadsAll : null, d:1, pct:true, nl:true},
+  {id:'bqneed',   k:'m.bqneed',   gk:'g.rates',  f:b=>(!b.bqNA && b.leadsAll && b.apTeams)? b.apTeams/b.leadsAll : null, d:1, pct:true, nl:true, nf:true},
   {id:'uteam',         k:'m.uteam', gk:'g.unit',f:b=>b.teams? b.vk/b.teams:null, d:0, cur:true},
   {id:'dbteam',            k:'m.dbteam', gk:'g.unit',f:b=>b.teams? b.db/b.teams:null, d:0, cur:true},
   {id:'ubook',      k:'m.ubook', gk:'g.unit',f:b=>b.book? b.vk/b.book :null, d:0, cur:true},
@@ -758,7 +763,7 @@ M.forEach(m=>{ m.n=m.k; m.g=m.gk; });
 
 /* ============================ Aggregation ============================ */
 function emptyBase(){return {book:0,teams:0,pax:0,nights:0,paxn:0,vk:0,ek:0,db:0,
-                             leads:0,props:0,web:0,fte:0,apTeams:0,apLeads:0,hasApLeads:false,leadPartial:false};}
+                             leads:0,props:0,web:0,leadsAll:0,bqNA:false,fte:0,apTeams:0,apLeads:0,hasApLeads:false,leadPartial:false};}
 
 function aggregate(from,to,teamSet){
   const b = emptyBase();
@@ -778,10 +783,11 @@ function aggregate(from,to,teamSet){
       if(r[0]<from || r[0]>to) continue;
       if(!teamSet.has(D.teams[r[1]])) continue;
       if(!leadOK(r)) continue;
-      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6];
+      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6]; b.leadsAll+=(r[7]||0);
     }
   }
   const mFrom = mIdx(i2d(from)), mTo = mIdx(i2d(to));
+  b.bqNA = mFrom < LEAD_CUT_M;           // alle Anfragen gibt es erst ab 2024
   const fullFrom = i2d(from).getUTCDate()===1 ? mFrom : mFrom+1;
   const toD = i2d(to);
   const lastOfMonth = new Date(Date.UTC(toD.getUTCFullYear(), toD.getUTCMonth()+1, 0)).getUTCDate();
@@ -846,6 +852,7 @@ function apVal(id, base){
   if(base.dimFiltered) return null;
   if(id==='teams') return base.apTeams||null;
   if(id==='leads') return (base.hasApLeads && !base.leadNA) ? base.apLeads : null;
+  if(id==='bqall') return metricVal('bqneed', base);   // nötige Quote, um die AP-Teams zu erreichen
   return null;
 }
 
@@ -1139,7 +1146,7 @@ function renderFunnel(){
 
 function renderKPI(){
   document.getElementById('kpiTiles').innerHTML =
-    ['ros','uteam','dbteam','mpn','apax','anights','webq','fte','dbfte'].map(i=>tile(i)).join('');
+    ['ros','uteam','dbteam','mpn','apax','anights','webq','bqall','fte','dbfte'].map(i=>tile(i)).join('');
   document.getElementById('kpiHint').textContent = t(CUR.dimFiltered ? 'h.kpiFiltered' : 'h.kpi');
 }
 
@@ -1310,7 +1317,7 @@ let TABLE=[];
 function renderTable(){
   const f=d2i(state.from), to=d2i(state.to);
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
-  const cols=['leads','props','teams','book','vk','db','ros','fte','uteam','dbteam','mpn','dbfte'];
+  const cols=['leads','props','teams','book','vk','db','ros','leadsall','bqall','bqneed','fte','uteam','dbteam','mpn','dbfte'];
   TABLE=[...TS].map(team=>{
     const s=new Set([team]);
     const c=aggregate(f,to,s);
@@ -1326,7 +1333,7 @@ function renderTable(){
                                   : ((b[col]??-1e18)-(a[col]??-1e18))*(dir<0?1:-1));
   let h=`<thead><tr><th data-c="team">${t('ctl.team')}</th>${cols.map(id=>`<th data-c="${id}">${MBY[id].n}</th>`).join('')}</tr></thead><tbody>`;
   const line=(r,strong)=>`<tr${strong?' style="font-weight:900"':''}><td>${r.team}</td>`+
-    cols.map(id=>`<td class="num">${fmt(id,r[id])}<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${state.vj?t('t.py')+' '+fmt(id,r[id+'__vj']):''}</span></td>`).join('')+`</tr>`;
+    cols.map(id=>`<td class="num">${fmt(id,r[id])}<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${state.vj&&id!=='bqneed'?t('t.py')+' '+fmt(id,r[id+'__vj']):''}</span></td>`).join('')+`</tr>`;
   h+=TABLE.map(r=>line(r)).join('')+line(total,true)+'</tbody>';
   const el=document.getElementById('dataTable');
   el.innerHTML=h;
@@ -1347,7 +1354,7 @@ function copyTable(){
 
 /* --- Definitionen --- */
 function renderDefs(){
-  const keys=['stichtag','db','teams','leads','props','web','fte','ap','py','gj','mpn',
+  const keys=['stichtag','db','teams','leads','props','web','bq','fte','ap','py','gj','mpn',
               'maps','dest','herk','region','hotel','hotelview','rank'];
   document.getElementById('defs').innerHTML =
     keys.map(k=>`<dt>${t('def.'+k+'.t')}</dt><dd>${t('def.'+k+'.d')}</dd>`).join('');
@@ -1594,9 +1601,12 @@ for(const r of D.bookings){ if(r[4]<0) continue;
   (HBOOK.get(r[4]) || HBOOK.set(r[4],[]).get(r[4])).push(r); }
 for(const r of D.leadHotel||[]){
   (HLEAD.get(r[1]) || HLEAD.set(r[1],[]).get(r[1])).push(r); }
-const HOTEL_M = ['leads','props','book','teams','vk','db','ros','pax','nights',
+const HOTEL_M = ['leads','leadsall','bqall','props','book','teams','vk','db','ros','pax','nights',
                  'anights','apax','mpn','uteam','dbteam','quote2','quote3','webq'];
 const hotelActive = new Set([...HBOOK.keys(), ...HLEAD.keys()]);
+
+/* Filter für Hotelblick und Rangliste: Bereich, Team und Länderfilter */
+function hotelFilter(){ return (state.team || state.group!=='all' || dimActive()) ? TS : null; }
 
 function aggHotel(from,to,hi,teamFilter){
   const b = emptyBase();
@@ -1616,9 +1626,10 @@ function aggHotel(from,to,hi,teamFilter){
     for(const r of (HLEAD.get(hi)||[])){
       if(r[0]<from || r[0]>to) continue;
       if(!allTeams && !(r[2]>=0 && teamFilter.has(D.teams[r[2]]))) continue;
-      b.leads+=r[3]; b.web+=r[4]; b.props+=r[5];
+      b.leads+=r[3]; b.web+=r[4]; b.props+=r[5]; b.leadsAll+=(r[6]||0);
     }
   } else b.leadNA = true;
+  b.bqNA = from < LEAD_CUT_D;
   return b;
 }
 
@@ -1694,8 +1705,9 @@ function renderHotelDetail(){
   body.hidden=false; empty.hidden=true;
   const h=D.hotels[state.hotel];
   const f=d2i(state.from), to=d2i(state.to);
-  const cur=aggHotel(f,to,state.hotel,null);
-  const vj =aggHotel(d2i(shiftYear(state.from,1)),d2i(shiftYear(state.to,1)),state.hotel,null);
+  const hf=hotelFilter();
+  const cur=aggHotel(f,to,state.hotel,hf);
+  const vj =aggHotel(d2i(shiftYear(state.from,1)),d2i(shiftYear(state.to,1)),state.hotel,hf);
 
   const meta=[];
   if(h[2]) meta.push(cname(h[2]));
@@ -1728,7 +1740,7 @@ function renderHotelChart(){
   for(let m=m0;m<=m1;m++){
     const s=mStart(m), e=new Date(Date.UTC(2019+Math.floor(m/12),(m%12)+1,0));
     const a=aggHotel(d2i(new Date(s.getUTCFullYear(),s.getUTCMonth(),1)),
-                     d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())),state.hotel,null);
+                     d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())),state.hotel,hotelFilter());
     pts.push({m, v:metricVal(id,a)});
   }
   const W=760,H=240,PL=62,PR=12,PT=12,PB=34;
@@ -1760,15 +1772,17 @@ function renderHotelChart(){
 function renderHotelTeams(f,to){
   const rows=[];
   for(const team of D.teams){
+    if(TS && !TS.has(team)) continue;
     const a=aggHotel(f,to,state.hotel,new Set([team]));
-    if(!a.book && !a.leads && !a.props) continue;
-    rows.push({team, leads:a.leads, props:a.props, book:a.book, teams:a.teams, vk:a.vk, db:a.db});
+    if(!a.book && !a.leads && !a.props && !a.leadsAll) continue;
+    rows.push({team, leads:a.leads, props:a.props, book:a.book, teams:a.teams, vk:a.vk, db:a.db,
+               leadsall:metricVal('leadsall',a), bqall:metricVal('bqall',a)});
   }
   rows.sort((a,b)=>b.db-a.db);
   const el=document.getElementById('hotelTeams');
   if(!rows.length){ el.innerHTML=`<tbody><tr><td class="axis" style="padding:var(--s-4)">${t('ho.noBookings')}</td></tr></tbody>`; return; }
-  el.innerHTML=`<thead><tr><th>${t('ctl.team')}</th><th>${MBY.leads.n}</th><th>${MBY.props.n}</th><th>${MBY.book.n}</th><th>${MBY.teams.n}</th><th>${MBY.vk.n}</th><th>${MBY.db.n}</th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td>${r.team}</td><td class="num">${nf(r.leads,0)}</td><td class="num">${nf(r.props,0)}</td>
+  el.innerHTML=`<thead><tr><th>${t('ctl.team')}</th><th>${MBY.leads.n}</th><th>${MBY.leadsall.n}</th><th>${MBY.bqall.n}</th><th>${MBY.props.n}</th><th>${MBY.book.n}</th><th>${MBY.teams.n}</th><th>${MBY.vk.n}</th><th>${MBY.db.n}</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r.team}</td><td class="num">${nf(r.leads,0)}</td><td class="num">${fmt('leadsall',r.leadsall)}</td><td class="num">${fmt('bqall',r.bqall)}</td><td class="num">${nf(r.props,0)}</td>
       <td class="num">${nf(r.book,0)}</td><td class="num">${nf(r.teams,0)}</td>
       <td class="num">${fmt('vk',r.vk)}</td><td class="num">${fmt('db',r.db)}</td></tr>`).join('')+`</tbody>`;
 }
@@ -1776,19 +1790,21 @@ function renderHotelTeams(f,to){
 function renderTopHotels(){
   const id=state.topMetric||'db';
   const f=d2i(state.from), to=d2i(state.to);
-  const teamFilter = (state.team || state.group!=='all' || dimActive()) ? TS : null;
+  const teamFilter = hotelFilter();
   const noLeads = !!(state.herk || state.region);
   const cols=noLeads ? ['book','teams','vk','db','ros','dbteam']
-                     : ['leads','props','book','teams','vk','db','ros','dbteam'];
+                     : ['leads','leadsall','bqall','props','book','teams','vk','db','ros','dbteam'];
+  const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
   const sortId = cols.includes(id) ? id : 'db';
   document.getElementById('topHint').textContent =
-    t(noLeads ? 'ho.rankFiltered' : teamFilter ? 'ho.rankSel' : 'ho.rankAll');
+    t(noLeads ? 'ho.rankFiltered' : teamFilter ? 'ho.rankSel' : 'ho.rankAll') + (noLeads ? '' : ' ' + t('ho.bqHint'));
   const rows=[];
   for(const hi of hotelActive){
     const a=aggHotel(f,to,hi,teamFilter);
     if(!a.book && !a.leads && !a.props) continue;
     const row={hi, name:D.hotels[hi][1], land:D.hotels[hi][2], id:D.hotels[hi][0]};
     cols.forEach(c=>row[c]=metricVal(c,a));
+    if(cols.includes('bqall') && state.vj) row.bqall__vj = metricVal('bqall', aggHotel(fv,tv,hi,teamFilter));
     rows.push(row);
   }
   rows.sort((a,b)=>(b[sortId]??-1e18)-(a[sortId]??-1e18));
@@ -1799,7 +1815,7 @@ function renderTopHotels(){
     `</tr></thead><tbody>`+
     top.map(r=>`<tr data-hi="${r.hi}" style="cursor:pointer">
       <td>${r.name}</td><td>${r.land?cname(r.land):''}</td><td class="num" style="font-weight:400">${r.id}</td>`+
-      cols.map(c=>`<td class="num">${fmt(c,r[c])}</td>`).join('')+`</tr>`).join('')+
+      cols.map(c=>`<td class="num">${fmt(c,r[c])}${c==='bqall'&&state.vj?`<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${t('t.py')} ${fmt(c,r.bqall__vj)}</span>`:''}</td>`).join('')+`</tr>`).join('')+
     `</tbody>`;
   el.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{
     state.hotel=+tr.dataset.hi;

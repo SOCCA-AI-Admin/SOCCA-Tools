@@ -41,10 +41,11 @@ function rAgg(m0, m1, p={}){
         if(p.team && r[1]!==ti) continue;
         if(p.dest && r[3]!==di) continue;
         if(p.herk && r[2]!==hi) continue;
-        b.leads+=r[4]; b.web+=r[5]; b.props+=r[6];
+        b.leads+=r[4]; b.web+=r[5]; b.props+=r[6]; b.leadsAll+=(r[7]||0);
       }
     }
   }
+  b.bqNA = m0 < CUTM;                    // alle Anfragen erst ab 2024
   /* Vor 2024 nur Monatssummen je Team, ohne Land */
   if(m0<CUTM){
     if(p.dest || p.herk){ b.leadNA = true; }
@@ -131,9 +132,9 @@ function reportCompare(M){
   }
   const sumOf = (src, list) => { const b=emptyBase(); b.hasApLeads=false; b.apLeads=0;
     for(const tm of list){ const x=src[tm];
-      for(const k of ['book','vk','ek','db','teams','pax','nights','paxn','leads','web','props','apTeams','apLeads','fte'])
+      for(const k of ['book','vk','ek','db','teams','pax','nights','paxn','leads','web','props','leadsAll','apTeams','apLeads','fte'])
         b[k]+=x[k]||0;
-      b.hasApLeads = b.hasApLeads || x.hasApLeads; b.webNA = b.webNA || x.webNA; }
+      b.hasApLeads = b.hasApLeads || x.hasApLeads; b.webNA = b.webNA || x.webNA; b.bqNA = b.bqNA || x.bqNA; }
     return b; };
   const all=[...teams,...others];
   if(others.length){ cur.__oth=sumOf(cur,others); vj.__oth=sumOf(vj,others); fy.__oth=sumOf(fy,others); }
@@ -152,6 +153,7 @@ function reportCompare(M){
   const n0 = v => v===null||!isFinite(v) ? '—' : nf(v,0);
   const eur = v => v===null||!isFinite(v) ? '—' : nf(v,0)+' €';
   const pct = v => v===null||!isFinite(v) ? '—' : nf(v*100,0)+' %';
+  const pct1 = v => v===null||v===undefined||!isFinite(v) ? '—' : nf(v*100,1)+' %';
 
   let h=`<table class="rt cmp"><thead><tr><th></th><th></th>`+
     cols.map(c=>`<th${c==='__sum'?' class="sm"':''}${c==='__oth'?` title="${others.join(', ')}"`:''}>${
@@ -172,6 +174,10 @@ function reportCompare(M){
   h+=gap;
   h+=row(MBY.props.n, L0, c=>n0(rv('props',vj[c])));
   h+=row('', L1, c=>`<b>${n0(rv('props',cur[c]))}</b>`);
+  h+=gap;
+  h+=row(MBY.bqall.n, L0, c=>pct1(rv('bqall',vj[c])));
+  h+=row('', L1, c=>`<b>${pct1(rv('bqall',cur[c]))}</b>`);
+  h+=row('', t('m.bqneed'), c=>pct1(rv('bqneed',cur[c])), 'ap');
   h+=gap;
   h+=row(MBY.teams.n, L0, c=>n0(vj[c].teams));
   h+=row('', L1, c=>`<b>${n0(cur[c].teams)}</b>`);
@@ -331,7 +337,7 @@ function apTiles(M, team, kind){
 function reportTSR(M, team){
   const p={team};
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
-             '*webq','*quote3','*quote1','*fte','*dbfte','*bookfte'];
+             '*webq','*quote3','*quote1','*bqall','*fte','*dbfte','*bookfte'];
   const k=kpiBlock(M,p,ids);
   const sheets = [
     `<div class="rgrid g2">
@@ -358,7 +364,7 @@ function reportTSR(M, team){
 function reportCSR(M, dest){
   const p={dest};
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
-             '*webq','*quote3','*quote1'];
+             '*webq','*quote3','*quote1','*bqall'];
   const k=kpiBlock(M,p,ids);
   const sheets = [
     `<div class="rgrid g2">

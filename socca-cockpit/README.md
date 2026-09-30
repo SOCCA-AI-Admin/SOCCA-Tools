@@ -676,6 +676,11 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   oder Regionsfilter bleiben sie und alles daraus Abgeleitete leer.
 - Die **Region** aus Spalte H gibt es nur für Buchungen; Combit führt kein
   Bundesland.
+- **Buchungsquote** = Teams ÷ **alle** Anfragen (jede Anfrage-Zeile in C_AP,
+  ohne Unique-Regel), je Team und je Hotel, mit Vorjahr. **Nötige Quote für
+  AP** = AP-Teams ÷ alle Anfragen — so hoch müsste die Quote sein, um die
+  geplanten Teams zu erreichen. Erst ab 01/2024.
+- Der **Hotelblick** folgt den Filtern für Bereich, Team und Reiseland.
 - **Anfragen und Angebote je Hotel** gibt es je Team und je Reiseland (Land
   des Hotels), nicht je Kundenherkunft oder Region. Eine Anfrage zählt bei
   jedem Hotel, das der Kunde angefragt hat.

@@ -344,12 +344,15 @@ def read_combit(path):
               Hotels ist deshalb groesser als die Zahl der unique Leads.
     Angebote  Belegart 'Angebot', datiert auf das Versanddatum, ersatzweise
               auf das Anfragedatum.
+    Alle      jede Zeile mit Belegart 'Anfrage', ohne Deduplizierung, datiert
+              auf ihr Anfragedatum — Basis der Buchungsquote (alle Anfragen).
     Web       Quelle 'website' oder Erfassung ueber das Webformular.
     Die Spalte AnsprechpartnerMail dient nur der Deduplizierung und wird
     nicht ausgegeben.
     """
     anfragen, angebote = {}, []
     hotel_anfragen = {}          # (mail, team, AP, WebID) -> (Datum, web)
+    alle = []                    # jede Anfrage-Zeile, ohne Deduplizierung
     for row in combit_rows(path):
         team = text(row.get('Team'))
         herk = norm_country(text(row.get('KundenHerkunft')))
@@ -363,6 +366,7 @@ def read_combit(path):
                or str(row.get('ErfassungsBenutzer') or '').strip() == 'Webformular_Import')
         art = (text(row.get('Belegart')) or '')
         if art == 'Anfrage':
+            alle.append((a, team, wid, herk, ziel))
             key = (str(row.get('AnsprechpartnerMail') or '').strip().lower(),
                    team, str(row.get('AP') or '').strip())
             prev = anfragen.get(key)
@@ -379,9 +383,9 @@ def read_combit(path):
                 o = a
             angebote.append((o, team, wid, herk, ziel))
 
-    # (Tag, Team, Herkunft, Reiseland) -> leads, web, offers
-    by_team = defaultdict(lambda: [0, 0, 0])
-    by_hotel = defaultdict(lambda: [0, 0, 0])    # (Tag, Hotel, Team) -> leads, web, offers
+    # (Tag, Team, Herkunft, Reiseland) -> leads, web, offers, alle Anfragen
+    by_team = defaultdict(lambda: [0, 0, 0, 0])
+    by_hotel = defaultdict(lambda: [0, 0, 0, 0])    # (Tag, Hotel, Team) -> leads, web, offers, alle
     for a, team, web, wid, herk, ziel in anfragen.values():
         if team:
             r = by_team[(dayidx(a), team, herk, ziel)]
@@ -394,6 +398,12 @@ def read_combit(path):
             by_team[(dayidx(o), team, herk, ziel)][2] += 1
         if wid:
             by_hotel[(dayidx(o), wid, team)][2] += 1
+    # Alle Anfragen (ohne Unique-Regel) für die Buchungsquote je Team und Hotel
+    for a, team, wid, herk, ziel in alle:
+        if team:
+            by_team[(dayidx(a), team, herk, ziel)][3] += 1
+        if wid:
+            by_hotel[(dayidx(a), wid, team)][3] += 1
     return by_team, by_hotel
 
 
@@ -538,7 +548,8 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
 
     lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v]
                         for (d, t, h, z), v in by_team.items() if t in tix])
-    # [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote]
+    # leadDaily: [Tag, Team, Herkunft, Reiseland, Anfragen unique, Web, Angebote, alle Anfragen]
+    # leadHotel: [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote, alle Anfragen]
     lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v] for (d, h, t), v in by_hotel.items() if h in hix])
 
     def mrows(series, cut=None):

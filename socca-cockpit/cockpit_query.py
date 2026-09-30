@@ -36,6 +36,9 @@ METRICS = {
     'nights':  ('Übernachtungen = Σ Pax × Nächte', lambda b: b['paxn'], 'n'),
     'anights': ('Ø Nächte je Buchung', lambda b: b['nights'] / b['book'] if b['book'] else None, 'n'),
     'apax':    ('Ø Pax je Buchung', lambda b: b['pax'] / b['book'] if b['book'] else None, 'n'),
+    'leads_all': ('Alle Anfragen (jede Anfrage-Zeile in C_AP, ohne Unique-Regel; erst ab 01/2024)', lambda b: b['leads_all'], 'n'),
+    'bq_all':  ('Buchungsquote = Teams / alle Anfragen (ohne Unique-Regel)', lambda b: b['teams'] / b['leads_all'] if b['leads_all'] else None, 'pct'),
+    'bq_need': ('Nötige Buchungsquote für AP = AP-Teams / alle Anfragen', lambda b: b['ap'] / b['leads_all'] if b['leads_all'] and b['ap'] else None, 'pct'),
     'quote1':  ('Angebote je Anfrage', lambda b: b['props'] / b['leads'] if b['leads'] else None, 'fac'),
     'quote2':  ('Buchungsrate = Buchungen / Anfragen', lambda b: b['book'] / b['leads'] if b['leads'] else None, 'pct'),
     'quote3':  ('Abschlussquote = Buchungen / Angebote', lambda b: b['book'] / b['props'] if b['props'] else None, 'pct'),
@@ -62,6 +65,7 @@ METRICS = {
     'ap_leads_pct': ('Zielerreichung Anfragen = Anfragen / AP-Anfragen', lambda b: b['leads'] / b['apl'] if b['apl'] and b['leads'] is not None else None, 'pct'),
 }
 LEAD_METRICS = {'leads', 'web', 'props', 'quote1', 'quote2', 'quote3', 'webq', 'leadfte'}
+ALL_LEAD_METRICS = {'leads_all', 'bq_all', 'bq_need'}
 FTE_METRICS = {'fte', 'leadfte', 'bookfte', 'teamfte', 'vkfte', 'dbfte'}
 AP_METRICS = {'ap_teams', 'ap_delta', 'ap_pct'}
 APL_METRICS = {'ap_leads', 'ap_leads_delta', 'ap_leads_pct'}
@@ -111,7 +115,7 @@ def bucket_of(d, kind):
 
 def empty():
     return dict(book=0, teams=0.0, pax=0.0, nights=0.0, paxn=0.0, vk=0.0, ek=0.0, db=0.0,
-                leads=0, web=0, props=0, fte=None, ap=None, apl=None)
+                leads=0, web=0, props=0, leads_all=0, fte=None, ap=None, apl=None)
 
 
 class Cockpit:
@@ -160,6 +164,7 @@ class Cockpit:
                 'Anfragen, Web-Anfragen und Angebote tagesgenau ab 01.01.2024 (Combit); davor nur monatlich je Team, ohne Länder/Hotel.',
                 'Anfragen sind unique: eine Mail-Adresse zählt einmal je Sales-Team und AP-Jahr. Auf Hotelebene zählt eine Anfrage bei jedem Hotel, das der Kunde angefragt hat — Summe der Hotels > Gesamtzahl.',
                 'Angebote werden je Angebotszeile gezählt, datiert auf das Versanddatum.',
+                'Buchungsquote (bq_all) = Teams / ALLE Anfragen (jede Anfrage-Zeile, ohne Unique-Regel), ab 01/2024; je Team und je Hotel. bq_need = AP-Teams / alle Anfragen = Quote, die nötig wäre, um die AP-Teams zu erreichen.',
                 'Für Regionen (Bundesländer/Kantone) und Sportarten gibt es keine Anfragen/Angebote, nur Buchungsdaten.',
                 'Anfragen und Angebote je Hotel gibt es je Team und je Reiseland (= Land des Hotels), aber nicht je Herkunftsland, Region oder Sportart.',
                 'FTE und Annual Planning (Teams und Anfragen) gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart. AP-Anfragen je Monat = AP-Teams des Folgemonats / Buchungsquote des Folgemonats im Vorjahr (Teams ÷ unique Anfragen des Vormonats).',
@@ -314,7 +319,7 @@ class Cockpit:
         if group_by == 'hotel' and 'leads' in metrics:
             notes.append('Anfragen je Hotel: jede Anfrage zählt bei jedem angefragten Hotel; die Summe über Hotels ist größer als die unique Anfragen.')
         for m in metrics:
-            if m in FTE_METRICS | AP_METRICS | APL_METRICS and (spec['dest'] or spec['herk'] or spec['region']
+            if m in FTE_METRICS | AP_METRICS | APL_METRICS | {'bq_need'} and (spec['dest'] or spec['herk'] or spec['region']
                                                    or spec['hotel'] or spec['sport']
                                                    or group_by in ('destination', 'origin_country', 'region', 'hotel', 'sport')):
                 notes.append(f'{m}: FTE/Plan gibt es nur je Team oder gesamt — hier leer.')
@@ -415,7 +420,7 @@ class Cockpit:
         if lead_na:
             notes.append('Anfragen/Angebote sind für diese Kombination aus Filter und Gruppierung nicht verfügbar.')
             for b in out.values():
-                b['leads'] = b['web'] = b['props'] = None
+                b['leads'] = b['web'] = b['props'] = b['leads_all'] = None
         elif hotel_mode:
             all_teams = spec['teams'] == set(D['teams'])
             for r in D['leadHotel']:
@@ -444,6 +449,7 @@ class Cockpit:
                     key = 'Gesamt'
                 b = out[key]
                 b['leads'] += r[3]; b['web'] += r[4]; b['props'] += r[5]
+                b['leads_all'] += r[6] if len(r) > 6 else 0
             if f < datetime.date(2024, 1, 1):
                 notes.append('Anfragen je Hotel gibt es erst ab 01.01.2024.')
             if spec['dest']:
@@ -474,6 +480,7 @@ class Cockpit:
                     key = 'Gesamt'
                 b = out[key]
                 b['leads'] += r[4]; b['web'] += r[5]; b['props'] += r[6]
+                b['leads_all'] += r[7] if len(r) > 7 else 0
             # vor 2024: nur ganze Monate, nur je Team, ohne Länder
             mf, mt = midx(f), midx(t)
             if mf < LEAD_CUT_M:
@@ -502,6 +509,11 @@ class Cockpit:
                     notes.append('Anfragen vor 2024 stammen aus dem Blatt Leads (monatlich, ohne Web-Anteil).')
                     if partial:
                         notes.append('Angebrochene Monate vor 2024 sind bei Anfragen/Angeboten nicht enthalten.')
+
+        if f < datetime.date(2024, 1, 1) and not lead_na:
+            for b in out.values():
+                b['leads_all'] = None
+            notes.append('Alle Anfragen und Buchungsquote gibt es erst ab 01.01.2024.')
 
         # ---- FTE und Annual Planning (nur je Team, Teamgruppe, Zeit, gesamt)
         dim = spec['dest'] or spec['herk'] or spec['region'] or spec['hotel'] or spec['sport']
@@ -545,6 +557,10 @@ class Cockpit:
         if b is None:
             return None
         if m in LEAD_METRICS and b.get('leads') is None:
+            return None
+        if m in ALL_LEAD_METRICS and (b.get('leads_all') is None or b.get('leads') is None):
+            return None
+        if m == 'bq_need' and b.get('ap') is None:
             return None
         if m in FTE_METRICS and not b.get('fte'):
             return None
