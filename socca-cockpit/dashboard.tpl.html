@@ -890,7 +890,7 @@ function deltaHTML(cur,ref){
 const state = {
   from: null, to: null, group:'all', team:'', vj:true, ap:true,
   trend:'db', teamMetric:'db', sort:{col:'db',dir:-1}, preset:'12m',
-  hotel:null, hotelMetric:'book', topMetric:'db',
+  hotel:null, hotelMetric:'book', topMetric:'db', topSort:null,
   dest:'', herk:'', region:'',
   mapMode:'dest', mapMetric:'db'
 };
@@ -1640,7 +1640,7 @@ function initHotel(){
   sel(hm); sel(tm);
   hm.value='book'; tm.value='db';
   hm.onchange=()=>{state.hotelMetric=hm.value; renderHotelDetail();};
-  tm.onchange=()=>{state.topMetric=tm.value; renderTopHotels();};
+  tm.onchange=()=>{state.topMetric=tm.value; state.topSort={col:tm.value, dir:-1}; renderTopHotels();};
   document.getElementById('hotelClear').onclick=()=>{
     state.hotel=null; box.value=''; renderHotelDetail();
   };
@@ -1795,7 +1795,12 @@ function renderTopHotels(){
   const cols=noLeads ? ['book','teams','vk','db','ros','dbteam']
                      : ['leads','leadsall','bqall','props','book','teams','vk','db','ros','dbteam'];
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
-  const sortId = cols.includes(id) ? id : 'db';
+  /* Sortierung: Klick auf eine Spalte wie in „Alle Werte“; die Auswahl oben setzt sie ebenfalls */
+  const allCols = ['name','land','id',...cols];
+  let srt = state.topSort && allCols.includes(state.topSort.col) ? state.topSort
+          : {col: cols.includes(id) ? id : 'db', dir:-1};
+  const sortId = srt.col;
+  const textCol = c => c==='name' || c==='land';
   document.getElementById('topHint').textContent =
     t(noLeads ? 'ho.rankFiltered' : teamFilter ? 'ho.rankSel' : 'ho.rankAll') + (noLeads ? '' : ' ' + t('ho.bqHint'));
   const rows=[];
@@ -1807,16 +1812,34 @@ function renderTopHotels(){
     if(cols.includes('bqall') && state.vj) row.bqall__vj = metricVal('bqall', aggHotel(fv,tv,hi,teamFilter));
     rows.push(row);
   }
-  rows.sort((a,b)=>(b[sortId]??-1e18)-(a[sortId]??-1e18));
+  rows.forEach(r=>{ r.landName = r.land ? cname(r.land) : ''; });
+  rows.sort((a,b)=>{
+    const key = sortId==='land' ? 'landName' : sortId;
+    const x=a[key], y=b[key];
+    if(x===null||x===undefined||x==='') return (y===null||y===undefined||y==='') ? 0 : 1;   // leer immer ans Ende
+    if(y===null||y===undefined||y==='') return -1;
+    const c = textCol(sortId) ? String(x).localeCompare(String(y), LOC) : x-y;
+    return c*srt.dir;
+  });
   const top=rows.slice(0,40);
   const el=document.getElementById('topHotels');
-  el.innerHTML=`<thead><tr><th>${t('ho.hotel')}</th><th>${t('ho.land')}</th><th>WebID</th>`+
-    cols.map(c=>`<th${c===sortId?' style="color:var(--fg-strong)"':''}>${MBY[c].n}</th>`).join('')+
+  const arrow = c => c===sortId ? (srt.dir<0 ? ' ▼' : ' ▲') : '';
+  const hs = c => `data-c="${c}"${c===sortId?' style="color:var(--fg-strong)"':''} aria-sort="${c===sortId?(srt.dir<0?'descending':'ascending'):'none'}"`;
+  const colLabel = c => c==='name' ? t('ho.hotel') : c==='land' ? t('ho.land') : c==='id' ? 'WebID' : MBY[c].n;
+  el.innerHTML=`<thead><tr>`+allCols.slice(0,3).map(c=>`<th ${hs(c)}>${colLabel(c)}${arrow(c)}</th>`).join('')+
+    cols.map(c=>`<th ${hs(c)}>${MBY[c].n}${arrow(c)}</th>`).join('')+
     `</tr></thead><tbody>`+
     top.map(r=>`<tr data-hi="${r.hi}" style="cursor:pointer">
       <td>${r.name}</td><td>${r.land?cname(r.land):''}</td><td class="num" style="font-weight:400">${r.id}</td>`+
       cols.map(c=>`<td class="num">${fmt(c,r[c])}${c==='bqall'&&state.vj?`<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${t('t.py')} ${fmt(c,r.bqall__vj)}</span>`:''}</td>`).join('')+`</tr>`).join('')+
     `</tbody>`;
+  el.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{
+    const c=th.dataset.c;
+    state.topSort = {col:c, dir: sortId===c ? -srt.dir : (textCol(c) ? 1 : -1)};
+    const sel=document.getElementById('topMetric');
+    if([...sel.options].some(o=>o.value===c)){ sel.value=c; state.topMetric=c; }
+    renderTopHotels();
+  });
   el.querySelectorAll('tbody tr').forEach(tr=>tr.onclick=()=>{
     state.hotel=+tr.dataset.hi;
     document.getElementById('hotelQ').value=D.hotels[state.hotel][1];
@@ -1826,7 +1849,7 @@ function renderTopHotels(){
   if(rows.length>40){
     el.insertAdjacentHTML('beforeend',
       `<tfoot><tr><td colspan="${cols.length+3}" style="color:var(--fg-muted);font-weight:400">`+
-      `${t('ho.more',{n:rows.length, m:MBY[sortId].n})}</td></tr></tfoot>`);
+      `${t('ho.more',{n:rows.length, m:colLabel(sortId)})}</td></tr></tfoot>`);
   }
 }
 
