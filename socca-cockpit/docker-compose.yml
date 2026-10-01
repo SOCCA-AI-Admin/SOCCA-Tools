@@ -21,8 +21,8 @@ services:
     environment:
       TZ: Europe/Berlin
       INTERVAL: "${COCKPIT_INTERVAL:-900}"      # Sekunden zwischen zwei Prüfungen
-      # AP-Anfragen wie im Blatt AP (ohne letzten Monatstag) = 1, ganze Monate = 0
-      AP_LEADS_WIE_EXCEL: "${AP_LEADS_WIE_EXCEL:-1}"
+      # AP-Anfragen: ganze Monate = 0 (Standard), wie altes Blatt AP ohne letzten Monatstag = 1
+      AP_LEADS_WIE_EXCEL: "${AP_LEADS_WIE_EXCEL:-0}"
       # Nur falls der Server über einen Proxy ins Internet geht:
       # HTTPS_PROXY: http://proxy.example:3128
     volumes:

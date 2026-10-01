@@ -23,8 +23,8 @@ TEAM_GROUPS = {
 
 # id: (Name, Formel über die Rohsummen b, Art)  Art: n=Anzahl, eur, pct, fac
 METRICS = {
-    'leads':   ('Anfragen (unique je Kunde, Team, AP-Jahr; je Hotel: je angefragtem Hotel)', lambda b: b['leads'], 'n'),
-    'web':     ('Web-Anfragen', lambda b: b['web'], 'n'),
+    'leads':   ('Unique Anfragen (je Kunde, Team, AP-Jahr; je Hotel: je angefragtem Hotel)', lambda b: b['leads'], 'n'),
+    'web':     ('Unique Web-Anfragen', lambda b: b['web'], 'n'),
     'props':   ('Angebote', lambda b: b['props'], 'n'),
     'teams':   ('Teams (Summe der Spalte Teams)', lambda b: b['teams'], 'n'),
     'book':    ('Buchungen', lambda b: b['book'], 'n'),
@@ -36,13 +36,11 @@ METRICS = {
     'nights':  ('Übernachtungen = Σ Pax × Nächte', lambda b: b['paxn'], 'n'),
     'anights': ('Ø Nächte je Buchung', lambda b: b['nights'] / b['book'] if b['book'] else None, 'n'),
     'apax':    ('Ø Pax je Buchung', lambda b: b['pax'] / b['book'] if b['book'] else None, 'n'),
-    'leads_all': ('Alle Anfragen (jede Anfrage-Zeile in C_AP, ohne Unique-Regel; erst ab 01/2024)', lambda b: b['leads_all'], 'n'),
-    'bq_all':  ('Buchungsquote = Teams / alle Anfragen (ohne Unique-Regel)', lambda b: b['teams'] / b['leads_all'] if b['leads_all'] else None, 'pct'),
-    'bq_need': ('Nötige Buchungsquote für AP = AP-Teams / alle Anfragen', lambda b: b['ap'] / b['leads_all'] if b['leads_all'] and b['ap'] else None, 'pct'),
-    'quote1':  ('Angebote je Anfrage', lambda b: b['props'] / b['leads'] if b['leads'] else None, 'fac'),
-    'quote2':  ('Buchungsrate = Buchungen / Anfragen', lambda b: b['book'] / b['leads'] if b['leads'] else None, 'pct'),
+    'leads_all': ('Anfragen gesamt (jede Anfrage-Zeile in C_AP, ohne Unique-Regel; erst ab 01/2024)', lambda b: b['leads_all'], 'n'),
+    'quote1':  ('Angebote je Unique Anfrage = Angebote / Unique Anfragen', lambda b: b['props'] / b['leads'] if b['leads'] else None, 'fac'),
+    'quote2':  ('Buchungsquote = Buchungen / Unique Anfragen', lambda b: b['book'] / b['leads'] if b['leads'] else None, 'pct'),
     'quote3':  ('Abschlussquote = Buchungen / Angebote', lambda b: b['book'] / b['props'] if b['props'] else None, 'pct'),
-    'webq':    ('Web-Anteil der Anfragen', lambda b: b['web'] / b['leads'] if b['leads'] else None, 'pct'),
+    'webq':    ('Web-Anteil der Unique Anfragen', lambda b: b['web'] / b['leads'] if b['leads'] else None, 'pct'),
     'uteam':   ('Umsatz je Team', lambda b: b['vk'] / b['teams'] if b['teams'] else None, 'eur'),
     'dbteam':  ('DB je Team', lambda b: b['db'] / b['teams'] if b['teams'] else None, 'eur'),
     'ubook':   ('Umsatz je Buchung', lambda b: b['vk'] / b['book'] if b['book'] else None, 'eur'),
@@ -51,7 +49,7 @@ METRICS = {
                 lambda b: (b['db'] / ((b['pax'] / b['book']) * (b['nights'] / b['book']) * b['teams'])
                            if b['book'] and b['teams'] and b['pax'] and b['nights'] else None), 'eur'),
     'fte':     ('FTE (Mittel der Monate)', lambda b: b['fte'], 'n'),
-    'leadfte': ('Anfragen je FTE', lambda b: b['leads'] / b['fte'] if b['fte'] and b['leads'] is not None else None, 'n'),
+    'leadfte': ('Unique Anfragen je FTE', lambda b: b['leads'] / b['fte'] if b['fte'] and b['leads'] is not None else None, 'n'),
     'bookfte': ('Buchungen je FTE', lambda b: b['book'] / b['fte'] if b['fte'] else None, 'n'),
     'teamfte': ('Teams je FTE', lambda b: b['teams'] / b['fte'] if b['fte'] else None, 'n'),
     'vkfte':   ('Umsatz je FTE', lambda b: b['vk'] / b['fte'] if b['fte'] else None, 'eur'),
@@ -59,13 +57,13 @@ METRICS = {
     'ap_teams': ('Annual Planning: geplante Teams', lambda b: b['ap'], 'n'),
     'ap_delta': ('Teams minus Plan', lambda b: b['teams'] - b['ap'] if b['ap'] is not None else None, 'n'),
     'ap_pct':  ('Zielerreichung Teams = Teams / Plan', lambda b: b['teams'] / b['ap'] if b['ap'] else None, 'pct'),
-    'ap_leads': ('Annual Planning: geplante Anfragen (AP-Teams des Folgemonats / Buchungsquote Vorjahr, wie Blatt AP)',
+    'ap_leads': ('Annual Planning: geplante Unique Anfragen (AP-Teams des Folgemonats / Vorjahresquote Teams÷Anfragen bzw. feste BuQ aus Blatt AP)',
                  lambda b: b['apl'], 'n'),
-    'ap_leads_delta': ('Anfragen minus AP-Anfragen', lambda b: b['leads'] - b['apl'] if b['apl'] is not None and b['leads'] is not None else None, 'n'),
-    'ap_leads_pct': ('Zielerreichung Anfragen = Anfragen / AP-Anfragen', lambda b: b['leads'] / b['apl'] if b['apl'] and b['leads'] is not None else None, 'pct'),
+    'ap_leads_delta': ('Unique Anfragen minus AP-Anfragen', lambda b: b['leads'] - b['apl'] if b['apl'] is not None and b['leads'] is not None else None, 'n'),
+    'ap_leads_pct': ('Zielerreichung Anfragen = Unique Anfragen / AP-Anfragen', lambda b: b['leads'] / b['apl'] if b['apl'] and b['leads'] is not None else None, 'pct'),
 }
 LEAD_METRICS = {'leads', 'web', 'props', 'quote1', 'quote2', 'quote3', 'webq', 'leadfte'}
-ALL_LEAD_METRICS = {'leads_all', 'bq_all', 'bq_need'}
+ALL_LEAD_METRICS = {'leads_all'}
 FTE_METRICS = {'fte', 'leadfte', 'bookfte', 'teamfte', 'vkfte', 'dbfte'}
 AP_METRICS = {'ap_teams', 'ap_delta', 'ap_pct'}
 APL_METRICS = {'ap_leads', 'ap_leads_delta', 'ap_leads_pct'}
@@ -161,13 +159,13 @@ class Cockpit:
             'regeln': [
                 'Stichtag aller Buchungs-, Umsatz- und DB-Kennzahlen ist das Buchungsdatum, nicht das Reisedatum.',
                 'Geschäftsjahr (GJ, Annual Planning AP) läuft von 1. Juli bis 30. Juni; GJ 2025/26 = AP2025/26 = 01.07.2025–30.06.2026.',
-                'Anfragen, Web-Anfragen und Angebote tagesgenau ab 01.01.2024 (Combit); davor nur monatlich je Team, ohne Länder/Hotel.',
-                'Anfragen sind unique: eine Mail-Adresse zählt einmal je Sales-Team und AP-Jahr. Auf Hotelebene zählt eine Anfrage bei jedem Hotel, das der Kunde angefragt hat — Summe der Hotels > Gesamtzahl.',
+                'Unique Anfragen, Web-Anfragen und Angebote tagesgenau ab 01.01.2024 (Combit); davor nur monatlich je Team, ohne Länder/Hotel.',
+                'Begriffe: „Unique Anfragen“ (Kennzahl leads) = eine Mail-Adresse zählt einmal je Sales-Team und AP-Jahr; „Anfragen gesamt“ (leads_all) = jede Anfrage-Zeile. Sagt jemand nur „Anfragen“, sind die Unique Anfragen gemeint. Auf Hotelebene zählt eine Anfrage bei jedem Hotel, das der Kunde angefragt hat — Summe der Hotels > Gesamtzahl.',
                 'Angebote werden je Angebotszeile gezählt, datiert auf das Versanddatum.',
-                'Buchungsquote (bq_all) = Teams / ALLE Anfragen (jede Anfrage-Zeile, ohne Unique-Regel), ab 01/2024; je Team und je Hotel. bq_need = AP-Teams / alle Anfragen = Quote, die nötig wäre, um die AP-Teams zu erreichen.',
+                'Buchungsquote (quote2) = Buchungen / Unique Anfragen; Abschlussquote (quote3) = Buchungen / Angebote. Den Begriff „Buchungsrate“ gibt es nicht mehr.',
                 'Für Regionen (Bundesländer/Kantone) und Sportarten gibt es keine Anfragen/Angebote, nur Buchungsdaten.',
                 'Anfragen und Angebote je Hotel gibt es je Team und je Reiseland (= Land des Hotels), aber nicht je Herkunftsland, Region oder Sportart.',
-                'FTE und Annual Planning (Teams und Anfragen) gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart. AP-Anfragen je Monat = AP-Teams des Folgemonats / Buchungsquote des Folgemonats im Vorjahr (Teams ÷ unique Anfragen des Vormonats).',
+                'FTE und Annual Planning (Teams und Anfragen) gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart. AP-Anfragen je Monat = AP-Teams des Folgemonats / Quote des Folgemonats im Vorjahr (Teams ÷ Unique Anfragen des Vormonats); ist im Blatt AP eine BuQ von Hand eingetragen, gilt diese.',
             ],
             'teams': D['teams'],
             'team_groups': {k: v[0] for k, v in TEAM_GROUPS.items()},
@@ -319,7 +317,7 @@ class Cockpit:
         if group_by == 'hotel' and 'leads' in metrics:
             notes.append('Anfragen je Hotel: jede Anfrage zählt bei jedem angefragten Hotel; die Summe über Hotels ist größer als die unique Anfragen.')
         for m in metrics:
-            if m in FTE_METRICS | AP_METRICS | APL_METRICS | {'bq_need'} and (spec['dest'] or spec['herk'] or spec['region']
+            if m in FTE_METRICS | AP_METRICS | APL_METRICS and (spec['dest'] or spec['herk'] or spec['region']
                                                    or spec['hotel'] or spec['sport']
                                                    or group_by in ('destination', 'origin_country', 'region', 'hotel', 'sport')):
                 notes.append(f'{m}: FTE/Plan gibt es nur je Team oder gesamt — hier leer.')
@@ -513,7 +511,7 @@ class Cockpit:
         if f < datetime.date(2024, 1, 1) and not lead_na:
             for b in out.values():
                 b['leads_all'] = None
-            notes.append('Alle Anfragen und Buchungsquote gibt es erst ab 01.01.2024.')
+            notes.append('Anfragen gesamt gibt es erst ab 01.01.2024.')
 
         # ---- FTE und Annual Planning (nur je Team, Teamgruppe, Zeit, gesamt)
         dim = spec['dest'] or spec['herk'] or spec['region'] or spec['hotel'] or spec['sport']
@@ -559,8 +557,6 @@ class Cockpit:
         if m in LEAD_METRICS and b.get('leads') is None:
             return None
         if m in ALL_LEAD_METRICS and (b.get('leads_all') is None or b.get('leads') is None):
-            return None
-        if m == 'bq_need' and b.get('ap') is None:
             return None
         if m in FTE_METRICS and not b.get('fte'):
             return None

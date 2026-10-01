@@ -206,6 +206,40 @@ class Workbook:
                 yield {j: v for j, v in enumerate(row) if v is not None}
 
 
+    def cells(self, name, max_row):
+        """Zellen mit Kennung, ob eine Formel dahintersteht:
+        liefert (Zeile, Spalte, Wert, ist_formel), Zeilen ab 0."""
+        real = self.resolve(name)
+        if self.kind == 'xlsb':
+            from pyxlsb import biff12
+            with self.wb.get_sheet(real) as sh:
+                sh._reader.seek(sh._data_offset, os.SEEK_SET)
+                r = -1
+                for item in sh._reader:
+                    rec, obj = item[0], item[1]
+                    if rec == biff12.ROW:
+                        r = obj.r
+                        if r > max_row:
+                            break
+                    elif biff12.BLANK <= rec <= biff12.FORMULA_BOOLERR:
+                        v = obj.v
+                        if rec == biff12.STRING and sh._stringtable is not None:
+                            v = sh._stringtable[v]
+                        yield r, obj.c, v, rec >= biff12.FORMULA_STRING
+                    elif rec == biff12.SHEETDATA_END:
+                        break
+        else:
+            import openpyxl
+            fw = openpyxl.load_workbook(self.path, read_only=True, data_only=False)
+            vals = self.wb[real].iter_rows(max_row=max_row + 1, values_only=True)
+            forms = fw[real].iter_rows(max_row=max_row + 1, values_only=True)
+            for r, (vr, fr) in enumerate(zip(vals, forms)):
+                for c, (v, f) in enumerate(zip(vr, fr)):
+                    if v is not None or f is not None:
+                        yield r, c, v, isinstance(f, str) and f.startswith('=')
+            fw.close()
+
+
 # ---------------------------------------------------------------- Mappe
 SALES_COL = dict(Date=2, Arrival=1, Sport=4, Team=5, Reg=6, Region=7, Hotel=9,
                  Land=10, Destination=11, VK=12, EK=13, Margin=15,
@@ -298,7 +332,48 @@ def read_workbook(path):
                     mo, yr = mo - 12, y0 + 1
                 ap.append((monthidx(datetime.date(yr, mo, 1)), code, v))
     out['ap'] = ap
+    out['buq_fixed'], out['buq_year'] = read_fixed_buq(wb)
     return out
+
+
+MONATE = {'januar': 1, 'februar': 2, 'märz': 3, 'maerz': 3, 'april': 4, 'mai': 5,
+          'juni': 6, 'juli': 7, 'august': 8, 'september': 9, 'oktober': 10,
+          'november': 11, 'dezember': 12}
+
+
+def read_fixed_buq(wb):
+    """Fest eingetragene Buchungsquoten aus der Tabelle "BuQ (Bu/Leads) JJJJ/JJ"
+    im Blatt AP. Zellen mit Formel rechnet das Cockpit selbst; nur Werte, die
+    von Hand eingetragen sind (z. B. FUNL, FUNW), ersetzen die Vorjahresquote.
+    Liefert ({(Team, Kalendermonat): Quote}, Startjahr des AP-Zeitraums)."""
+    try:
+        grid = {}
+        for r, c, v, is_f in wb.cells('AP', 80):
+            grid[(r, c)] = (v, is_f)
+    except SystemExit:
+        return {}, None
+    head = next(((r, c, v) for (r, c), (v, _) in grid.items()
+                 if isinstance(v, str) and v.strip().lower().startswith('buq')), None)
+    if not head:
+        return {}, None
+    hr, hc, label = head
+    import re
+    m = re.search(r'(20\d\d)\s*/\s*\d\d', label)
+    if not m:
+        return {}, None
+    ap_year = int(m.group(1)) + 1                  # Quote 2025/26 -> AP 2026/27
+    teams = {c: text(v) for (r, c), (v, _) in grid.items()
+             if r == hr and c > hc and text(v)}
+    fixed = {}
+    for rr in range(hr + 1, hr + 13):
+        mon = MONATE.get((text(grid.get((rr, hc), (None,))[0]) or '').lower())
+        if not mon:
+            continue
+        for c, team in teams.items():
+            v, is_f = grid.get((rr, c), (None, True))
+            if not is_f and isinstance(v, (int, float)) and v > 0:
+                fixed[(team, mon)] = float(v)
+    return fixed, ap_year
 
 
 # -------------------------------------------------------------- Combit
@@ -449,11 +524,11 @@ def read_ap_leads(path):
 # Juni: Folgemonat ist der Juli desselben AP-Zeitraums. Ohne geplante oder
 # stattgefundene Buchungen gibt es keine AP-Anfragen (0).
 #
-# Die Formel im Blatt AP vergleicht das Anfragedatum (mit Uhrzeit) mit
-# "<=31.MM.JJJJ" bzw. "<=30.". Dadurch fehlen dort die Anfragen vom letzten
-# Tag des Monats. AP_LEADS_WIE_EXCEL = True bildet das nach, damit die Werte
-# mit dem Blatt AP übereinstimmen; False zählt den ganzen Monat.
-AP_LEADS_WIE_EXCEL = os.environ.get('AP_LEADS_WIE_EXCEL', '1').strip() not in ('0', 'nein', 'false')
+# Gezaehlt werden immer ganze Monate (alle Tage). Die Formel im Blatt AP
+# vergleicht das Anfragedatum (mit Uhrzeit) mit "<=31.MM.JJJJ" und verliert
+# dadurch die Anfragen vom letzten Tag des Monats. Nur zum Abgleich mit einer
+# noch nicht korrigierten Mappe: AP_LEADS_WIE_EXCEL=1 bildet das nach.
+AP_LEADS_WIE_EXCEL = os.environ.get('AP_LEADS_WIE_EXCEL', '0').strip() in ('1', 'ja', 'true')
 
 
 def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
@@ -474,13 +549,19 @@ def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
             for team, v in vals.items():
                 leads_m[(team, mi)] += v or 0
     ap = {(c, mi): v for mi, c, v in wbd['ap']}
+    fixed, fixed_year = wbd.get('buq_fixed') or {}, wbd.get('buq_year')
     out = []
     for (team, m), _ in sorted(ap.items(), key=lambda x: (x[0][1], x[0][0])):
         nxt = m + 1 if m % 12 != 5 else m - 11       # Juni -> Juli desselben AP-Zeitraums
         plan = ap.get((team, nxt), 0) or 0
-        t_vj = teams_m.get((team, nxt - 12), 0)
-        l_vj = leads_m.get((team, nxt - 13), 0)
-        val = plan * l_vj / t_vj if plan > 0 and t_vj > 0 and l_vj > 0 else 0.0
+        ap_start = MONTH0[0] + (m - 6) // 12          # Startjahr des AP-Zeitraums (Juli)
+        buq = fixed.get((team, nxt % 12 + 1)) if ap_start == fixed_year else None
+        if buq:                                      # Quote im Blatt AP von Hand gesetzt
+            val = plan / buq if plan > 0 else 0.0
+        else:
+            t_vj = teams_m.get((team, nxt - 12), 0)
+            l_vj = leads_m.get((team, nxt - 13), 0)
+            val = plan * l_vj / t_vj if plan > 0 and t_vj > 0 and l_vj > 0 else 0.0
         out.append((m, team, val))
     return out
 
@@ -605,6 +686,9 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     print(f'AP-Anfragen      {len(data["apLeads"])} Zeilen, berechnet aus AP-Teams und Vorjahresquote'
           + (' (wie Blatt AP, ohne letzten Monatstag)' if AP_LEADS_WIE_EXCEL else ' (ganze Monate)')
           + (f', {len(csv_rows)} Werte aus AP_Leads.csv' if csv_rows else ''))
+    if wbd.get('buq_fixed'):
+        fx = sorted({t for t, _ in wbd['buq_fixed']})
+        print(f'Feste BuQ        AP {wbd["buq_year"]}/{(wbd["buq_year"] + 1) % 100:02d} aus Blatt AP: {", ".join(fx)}')
     print(f'-> {outpath}  {os.path.getsize(outpath)/1e6:.2f} MB')
 
 

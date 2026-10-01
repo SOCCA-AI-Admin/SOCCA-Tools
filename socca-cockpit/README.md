@@ -586,29 +586,39 @@ Mit ★ markierte Kennzahlen und Abschnitte sind neu gegenüber dem Excel-Report
 
 ### AP für Anfragen
 
-Das Cockpit berechnet die geplanten Anfragen je Team und Monat selbst, nach
-derselben Regel wie das Blatt *AP* der Mappe:
+Das Cockpit berechnet die geplanten Unique Anfragen je Team und Monat selbst,
+nach derselben Regel wie das Blatt *AP* der Mappe:
 
-> AP-Anfragen im Monat = AP-Teams des **Folgemonats** ÷ Buchungsquote des
-> Folgemonats im **Vorjahr**
-> Buchungsquote = Teams im Monat ÷ unique Anfragen („einfach“) im Vormonat
+> AP-Anfragen im Monat = AP-Teams des **Folgemonats** (Blatt *Goals*) ÷ Quote
+> des Folgemonats im **Vorjahr**
+> Quote (im Blatt *AP* „BuQ“) = Teams im Monat ÷ Unique Anfragen („einfach“)
+> im Vormonat
+
+**Fest eingetragene Quoten.** Steht in der Tabelle *BuQ (Bu/Leads) JJJJ/JJ*
+im Blatt *AP* statt einer Formel ein von Hand eingetragener Wert (heute bei
+FUNL, für Teams mit wenig oder ohne Vorjahr), nimmt das Cockpit für diesen
+Team-Monat genau diesen Wert — für den AP-Zeitraum, auf den die Tabelle
+zielt (Quote 2025/26 → AP 2026/27). Alle Zellen mit Formel rechnet das
+Cockpit selbst. Die geplanten Teams kommen immer aus *Goals*, nicht aus
+Spalte C des Blattes *AP*.
 
 Anfragen kommen rund einen Monat vor der Buchung. Für Juni gilt der Juli
 desselben AP-Zeitraums. Ohne geplante oder stattgefundene Buchungen gibt es
 keine AP-Anfragen. Gegen das Blatt *AP* geprüft: FUSU 2026/27, alle zwölf
 Monate identisch (Summe 891).
 
-Die AP-Anfragen erscheinen in der Kachel *Anfragen*, in den Vergleichs-
+Die AP-Anfragen erscheinen in der Kachel *Unique Anfragen*, in den Vergleichs-
 panels, im Verlauf, im Monatsvergleich, im Team Status Report und im
 Fragefeld — je Team und Zeitraum. Bei Länder- oder Regionsfiltern bleiben
 sie leer, weil es den Plan nur je Team gibt.
 
-**Letzter Tag des Monats.** Die Formel im Blatt *AP* vergleicht das
-Anfragedatum (mit Uhrzeit) mit „<=31.MM.JJJJ“ bzw. „<=30.“. Dadurch fehlen
-dort die Anfragen vom letzten Tag des Monats. Das Cockpit rechnet
-standardmäßig genauso, damit die Zahlen übereinstimmen. Wird die Formel in
-der Mappe korrigiert, in `docker-compose.yml` beim *worker*
-`AP_LEADS_WIE_EXCEL: "0"` setzen — dann zählen ganze Monate.
+**Ganze Monate.** Das Cockpit zählt die Anfragen immer über alle Tage des
+Monats. Die Formeln im Blatt *AP* vergleichen das Anfragedatum (mit Uhrzeit)
+mit „<=31.MM.JJJJ“ bzw. „<=30.“ und verlieren dadurch die Anfragen vom
+letzten Tag des Monats — korrigiert wird das mit „<“ und dem Ersten des
+Folgemonats. Nur zum Abgleich mit einer noch nicht korrigierten Mappe lässt
+sich das alte Verhalten mit `AP_LEADS_WIE_EXCEL: "1"` beim *worker* in
+`docker-compose.yml` nachbilden.
 
 Eine Datei `data/AP_Leads.csv` (Team;Monat;Leads, Vorlage in `deploy/`)
 überschreibt einzelne berechnete Werte, etwa für manuell gesetzte Ziele.
@@ -670,18 +680,21 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
 - **DB** ist die Spalte `MargIn`, also VK minus EK.
 - **Teams** ist eine eigene Zählgröße neben Buchungen — eine Buchung kann
   mehrere Teams enthalten.
-- **Anfragen und Angebote** kommen ab 2024 aus Combit, davor aus den Blättern
+- **Unique Anfragen** zählen eine Mail-Adresse einmal je Sales-Team und
+  AP-Jahr. **Anfragen gesamt** zählen jede Anfrage-Zeile in C_AP, ohne
+  Unique-Regel — erst ab 01/2024.
+- **Unique Anfragen und Angebote** kommen ab 2024 aus Combit, davor aus den Blättern
   `Leads` und `Props` der Mappe und dort nur monatsgenau.
 - **FTE und Annual Planning** liegen nur je Team vor. Bei gesetztem Länder-
   oder Regionsfilter bleiben sie und alles daraus Abgeleitete leer.
 - Die **Region** aus Spalte H gibt es nur für Buchungen; Combit führt kein
   Bundesland.
-- **Buchungsquote** = Teams ÷ **alle** Anfragen (jede Anfrage-Zeile in C_AP,
-  ohne Unique-Regel), je Team und je Hotel, mit Vorjahr. **Nötige Quote für
-  AP** = AP-Teams ÷ alle Anfragen — so hoch müsste die Quote sein, um die
-  geplanten Teams zu erreichen. Erst ab 01/2024.
+- **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
+  mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
+- Die **Schnellauswahl** rechnet ab heute: *Laufender Monat* am 01.10. ist
+  der 01.10.–01.10., *Geschäftsjahr* der 01.07. bis heute.
 - Der **Hotelblick** folgt den Filtern für Bereich, Team und Reiseland.
-- **Anfragen und Angebote je Hotel** gibt es je Team und je Reiseland (Land
+- **Unique Anfragen und Angebote je Hotel** gibt es je Team und je Reiseland (Land
   des Hotels), nicht je Kundenherkunft oder Region. Eine Anfrage zählt bei
   jedem Hotel, das der Kunde angefragt hat.
 

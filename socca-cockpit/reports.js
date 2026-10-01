@@ -153,7 +153,6 @@ function reportCompare(M){
   const n0 = v => v===null||!isFinite(v) ? '—' : nf(v,0);
   const eur = v => v===null||!isFinite(v) ? '—' : nf(v,0)+' €';
   const pct = v => v===null||!isFinite(v) ? '—' : nf(v*100,0)+' %';
-  const pct1 = v => v===null||v===undefined||!isFinite(v) ? '—' : nf(v*100,1)+' %';
 
   let h=`<table class="rt cmp"><thead><tr><th></th><th></th>`+
     cols.map(c=>`<th${c==='__sum'?' class="sm"':''}${c==='__oth'?` title="${others.join(', ')}"`:''}>${
@@ -174,10 +173,6 @@ function reportCompare(M){
   h+=gap;
   h+=row(MBY.props.n, L0, c=>n0(rv('props',vj[c])));
   h+=row('', L1, c=>`<b>${n0(rv('props',cur[c]))}</b>`);
-  h+=gap;
-  h+=row(MBY.bqall.n, L0, c=>pct1(rv('bqall',vj[c])));
-  h+=row('', L1, c=>`<b>${pct1(rv('bqall',cur[c]))}</b>`);
-  h+=row('', t('m.bqneed'), c=>pct1(rv('bqneed',cur[c])), 'ap');
   h+=gap;
   h+=row(MBY.teams.n, L0, c=>n0(vj[c].teams));
   h+=row('', L1, c=>`<b>${n0(cur[c].teams)}</b>`);
@@ -337,7 +332,7 @@ function apTiles(M, team, kind){
 function reportTSR(M, team){
   const p={team};
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
-             '*webq','*quote3','*quote1','*bqall','*fte','*dbfte','*bookfte'];
+             '*webq','*quote3','*quote1','*fte','*dbfte','*bookfte'];
   const k=kpiBlock(M,p,ids);
   const sheets = [
     `<div class="rgrid g2">
@@ -364,7 +359,7 @@ function reportTSR(M, team){
 function reportCSR(M, dest){
   const p={dest};
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
-             '*webq','*quote3','*quote1','*bqall'];
+             '*webq','*quote3','*quote1'];
   const k=kpiBlock(M,p,ids);
   const sheets = [
     `<div class="rgrid g2">

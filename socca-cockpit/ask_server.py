@@ -217,6 +217,8 @@ Regeln:
 - Kurz und sachlich: zuerst die Antwort in ein, zwei Sätzen, dann bei Bedarf eine kleine Markdown-Tabelle (höchstens 12 Zeilen). Keine Überschriften, keine Emojis.
 - Zahlen im Format der Antwortsprache; Euro gerundet (ab 10.000 € in Tsd €), Quoten in Prozent mit einer Nachkommastelle.
 - Team-Codes (FUNO, FUSU, TECA …) nicht übersetzen. Teams (Zählgröße) ≠ Buchungen.
+- Begriffe wie im Cockpit: „Unique Anfragen“ (leads) und „Anfragen gesamt“ (leads_all); „Buchungsquote“ = Buchungen ÷ Unique Anfragen (quote2), „Abschlussquote“ = Buchungen ÷ Angebote. Nur „Anfragen“ in der Frage = Unique Anfragen. „Laufender Monat“ = vom 1. des aktuellen Kalendermonats bis heute.
+- „Unique“ und „Anfragen“ nur auf Deutsch; in anderen Sprachen die Begriffe der Oberfläche: nl unieke aanvragen / aanvragen totaal, es solicitudes únicas / solicitudes totales, it richieste uniche / richieste totali, hr jedinstveni upiti / upiti ukupno, cs unikátní poptávky / poptávky celkem, nb unike forespørsler / forespørsler totalt, tr tekil talepler / toplam talepler, hu egyedi érdeklődések / összes érdeklődés.
 """
 
 

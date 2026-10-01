@@ -703,7 +703,13 @@ const i2d = i => new Date(DAY0 + i*864e5);
 const mIdx = d => (d.getUTCFullYear()-2019)*12 + d.getUTCMonth();
 const mIdxLocal = d => (d.getFullYear()-2019)*12 + d.getMonth();
 const mStart = m => new Date(Date.UTC(2019 + Math.floor(m/12), m%12, 1));
-const iso = d => d.toISOString().slice(0,10);
+/* Datumsfelder rechnen in Ortszeit: toISOString() wuerde Mitternacht nach
+   UTC verschieben und den 1. als Vortag anzeigen. */
+const pad2 = n => String(n).padStart(2,'0');
+const iso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const fromIso = v => { const [y,m,d]=String(v).split('-').map(Number); return (y&&m&&d) ? new Date(y,m-1,d) : null; };
+const localDay = d => new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());   // UTC-Tag -> Ortsdatum
+const today = () => { const n=new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
 
 const maxDay = D.bookings.reduce((a,b)=>Math.max(a,b[0]),0);
 const minDay = D.bookings.reduce((a,b)=>Math.min(a,b[0]),1e9);
@@ -742,10 +748,8 @@ const M = [
   {id:'quote3',        k:'m.quote3', gk:'g.rates', f:b=>b.props? b.book/b.props:null, d:1, pct:true, nl:true},
   {id:'webq',     k:'m.webq', gk:'g.rates', f:b=>b.leads? b.web/b.leads :null, d:1, pct:true, nl:true},
   {id:'web',             k:'m.web', gk:'g.rates', f:b=>b.web,                 d:0, nl:true},
-  /* Buchungsquote auf Basis ALLER Anfragen (ohne Unique-Regel), erst ab 2024 */
+  /* Anfragen gesamt: jede Anfrage-Zeile ohne Unique-Regel, erst ab 2024 */
   {id:'leadsall', k:'m.leadsall', gk:'g.funnel', f:b=>b.bqNA? null : b.leadsAll, d:0, nl:true},
-  {id:'bqall',    k:'m.bqall',    gk:'g.rates',  f:b=>(!b.bqNA && b.leadsAll)? b.teams/b.leadsAll : null, d:1, pct:true, nl:true},
-  {id:'bqneed',   k:'m.bqneed',   gk:'g.rates',  f:b=>(!b.bqNA && b.leadsAll && b.apTeams)? b.apTeams/b.leadsAll : null, d:1, pct:true, nl:true, nf:true},
   {id:'uteam',         k:'m.uteam', gk:'g.unit',f:b=>b.teams? b.vk/b.teams:null, d:0, cur:true},
   {id:'dbteam',            k:'m.dbteam', gk:'g.unit',f:b=>b.teams? b.db/b.teams:null, d:0, cur:true},
   {id:'ubook',      k:'m.ubook', gk:'g.unit',f:b=>b.book? b.vk/b.book :null, d:0, cur:true},
@@ -852,7 +856,6 @@ function apVal(id, base){
   if(base.dimFiltered) return null;
   if(id==='teams') return base.apTeams||null;
   if(id==='leads') return (base.hasApLeads && !base.leadNA) ? base.apLeads : null;
-  if(id==='bqall') return metricVal('bqneed', base);   // nötige Quote, um die AP-Teams zu erreichen
   return null;
 }
 
@@ -944,8 +947,8 @@ function initControls(){
   rg.onchange=()=>{ state.region=rg.value; render(); };
   fillRegions();
 
-  document.getElementById('from').onchange = e => { state.from=new Date(e.target.value); state.preset=null; render(); };
-  document.getElementById('to').onchange   = e => { state.to  =new Date(e.target.value); state.preset=null; render(); };
+  document.getElementById('from').onchange = e => { const d=fromIso(e.target.value); if(!d) return; state.from=d; state.preset=null; render(); };
+  document.getElementById('to').onchange   = e => { const d=fromIso(e.target.value); if(!d) return; state.to=d; state.preset=null; render(); };
 
   const tv=document.getElementById('cmpVJ'), ta=document.getElementById('cmpAP');
   tv.onclick=()=>{state.vj=!state.vj; render();};
@@ -1024,14 +1027,15 @@ function fillTeams(){
 }
 function applyPreset(p){
   state.preset=p;
-  const end = LAST;
+  /* Schnellauswahl ab heute: „Laufender Monat“ am 01.10. = 01.10.–01.10. */
+  const end = today();
   let start;
   if(p==='1m') start=new Date(end.getFullYear(),end.getMonth(),1);
   else if(p==='3m'){ start=new Date(end.getFullYear(),end.getMonth()-2,1); }
   else if(p==='12m'){ start=new Date(end.getFullYear(),end.getMonth()-11,1); }
   else if(p==='gj'){ const y=end.getMonth()>=6?end.getFullYear():end.getFullYear()-1; start=new Date(y,6,1); }
   else if(p==='kj') start=new Date(end.getFullYear(),0,1);
-  else start=FIRST;
+  else start=localDay(FIRST);
   state.from=start; state.to=end;
   document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===p)));
 }
@@ -1146,7 +1150,7 @@ function renderFunnel(){
 
 function renderKPI(){
   document.getElementById('kpiTiles').innerHTML =
-    ['ros','uteam','dbteam','mpn','apax','anights','webq','bqall','fte','dbfte'].map(i=>tile(i)).join('');
+    ['ros','uteam','dbteam','mpn','apax','anights','webq','quote2','fte','dbfte'].map(i=>tile(i)).join('');
   document.getElementById('kpiHint').textContent = t(CUR.dimFiltered ? 'h.kpiFiltered' : 'h.kpi');
 }
 
@@ -1317,7 +1321,7 @@ let TABLE=[];
 function renderTable(){
   const f=d2i(state.from), to=d2i(state.to);
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
-  const cols=['leads','props','teams','book','vk','db','ros','leadsall','bqall','bqneed','fte','uteam','dbteam','mpn','dbfte'];
+  const cols=['leads','leadsall','props','teams','book','vk','db','ros','quote2','fte','uteam','dbteam','mpn','dbfte'];
   TABLE=[...TS].map(team=>{
     const s=new Set([team]);
     const c=aggregate(f,to,s);
@@ -1333,7 +1337,7 @@ function renderTable(){
                                   : ((b[col]??-1e18)-(a[col]??-1e18))*(dir<0?1:-1));
   let h=`<thead><tr><th data-c="team">${t('ctl.team')}</th>${cols.map(id=>`<th data-c="${id}">${MBY[id].n}</th>`).join('')}</tr></thead><tbody>`;
   const line=(r,strong)=>`<tr${strong?' style="font-weight:900"':''}><td>${r.team}</td>`+
-    cols.map(id=>`<td class="num">${fmt(id,r[id])}<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${state.vj&&id!=='bqneed'?t('t.py')+' '+fmt(id,r[id+'__vj']):''}</span></td>`).join('')+`</tr>`;
+    cols.map(id=>`<td class="num">${fmt(id,r[id])}<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${state.vj?t('t.py')+' '+fmt(id,r[id+'__vj']):''}</span></td>`).join('')+`</tr>`;
   h+=TABLE.map(r=>line(r)).join('')+line(total,true)+'</tbody>';
   const el=document.getElementById('dataTable');
   el.innerHTML=h;
@@ -1354,7 +1358,7 @@ function copyTable(){
 
 /* --- Definitionen --- */
 function renderDefs(){
-  const keys=['stichtag','db','teams','leads','props','web','bq','fte','ap','py','gj','mpn',
+  const keys=['stichtag','db','teams','leads','leadsall','props','web','bq','fte','ap','py','gj','mpn',
               'maps','dest','herk','region','hotel','hotelview','rank'];
   document.getElementById('defs').innerHTML =
     keys.map(k=>`<dt>${t('def.'+k+'.t')}</dt><dd>${t('def.'+k+'.d')}</dd>`).join('');
@@ -1601,7 +1605,7 @@ for(const r of D.bookings){ if(r[4]<0) continue;
   (HBOOK.get(r[4]) || HBOOK.set(r[4],[]).get(r[4])).push(r); }
 for(const r of D.leadHotel||[]){
   (HLEAD.get(r[1]) || HLEAD.set(r[1],[]).get(r[1])).push(r); }
-const HOTEL_M = ['leads','leadsall','bqall','props','book','teams','vk','db','ros','pax','nights',
+const HOTEL_M = ['leads','leadsall','props','book','teams','vk','db','ros','pax','nights',
                  'anights','apax','mpn','uteam','dbteam','quote2','quote3','webq'];
 const hotelActive = new Set([...HBOOK.keys(), ...HLEAD.keys()]);
 
@@ -1776,13 +1780,13 @@ function renderHotelTeams(f,to){
     const a=aggHotel(f,to,state.hotel,new Set([team]));
     if(!a.book && !a.leads && !a.props && !a.leadsAll) continue;
     rows.push({team, leads:a.leads, props:a.props, book:a.book, teams:a.teams, vk:a.vk, db:a.db,
-               leadsall:metricVal('leadsall',a), bqall:metricVal('bqall',a)});
+               leadsall:metricVal('leadsall',a), quote2:metricVal('quote2',a)});
   }
   rows.sort((a,b)=>b.db-a.db);
   const el=document.getElementById('hotelTeams');
   if(!rows.length){ el.innerHTML=`<tbody><tr><td class="axis" style="padding:var(--s-4)">${t('ho.noBookings')}</td></tr></tbody>`; return; }
-  el.innerHTML=`<thead><tr><th>${t('ctl.team')}</th><th>${MBY.leads.n}</th><th>${MBY.leadsall.n}</th><th>${MBY.bqall.n}</th><th>${MBY.props.n}</th><th>${MBY.book.n}</th><th>${MBY.teams.n}</th><th>${MBY.vk.n}</th><th>${MBY.db.n}</th></tr></thead><tbody>`+
-    rows.map(r=>`<tr><td>${r.team}</td><td class="num">${nf(r.leads,0)}</td><td class="num">${fmt('leadsall',r.leadsall)}</td><td class="num">${fmt('bqall',r.bqall)}</td><td class="num">${nf(r.props,0)}</td>
+  el.innerHTML=`<thead><tr><th>${t('ctl.team')}</th><th>${MBY.leads.n}</th><th>${MBY.leadsall.n}</th><th>${MBY.quote2.n}</th><th>${MBY.props.n}</th><th>${MBY.book.n}</th><th>${MBY.teams.n}</th><th>${MBY.vk.n}</th><th>${MBY.db.n}</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${r.team}</td><td class="num">${nf(r.leads,0)}</td><td class="num">${fmt('leadsall',r.leadsall)}</td><td class="num">${fmt('quote2',r.quote2)}</td><td class="num">${nf(r.props,0)}</td>
       <td class="num">${nf(r.book,0)}</td><td class="num">${nf(r.teams,0)}</td>
       <td class="num">${fmt('vk',r.vk)}</td><td class="num">${fmt('db',r.db)}</td></tr>`).join('')+`</tbody>`;
 }
@@ -1793,7 +1797,7 @@ function renderTopHotels(){
   const teamFilter = hotelFilter();
   const noLeads = !!(state.herk || state.region);
   const cols=noLeads ? ['book','teams','vk','db','ros','dbteam']
-                     : ['leads','leadsall','bqall','props','book','teams','vk','db','ros','dbteam'];
+                     : ['leads','leadsall','props','book','teams','vk','db','ros','quote2','dbteam'];
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
   /* Sortierung: Klick auf eine Spalte wie in „Alle Werte“; die Auswahl oben setzt sie ebenfalls */
   const allCols = ['name','land','id',...cols];
@@ -1809,7 +1813,7 @@ function renderTopHotels(){
     if(!a.book && !a.leads && !a.props) continue;
     const row={hi, name:D.hotels[hi][1], land:D.hotels[hi][2], id:D.hotels[hi][0]};
     cols.forEach(c=>row[c]=metricVal(c,a));
-    if(cols.includes('bqall') && state.vj) row.bqall__vj = metricVal('bqall', aggHotel(fv,tv,hi,teamFilter));
+    if(cols.includes('quote2') && state.vj) row.quote2__vj = metricVal('quote2', aggHotel(fv,tv,hi,teamFilter));
     rows.push(row);
   }
   rows.forEach(r=>{ r.landName = r.land ? cname(r.land) : ''; });
@@ -1831,7 +1835,7 @@ function renderTopHotels(){
     `</tr></thead><tbody>`+
     top.map(r=>`<tr data-hi="${r.hi}" style="cursor:pointer">
       <td>${r.name}</td><td>${r.land?cname(r.land):''}</td><td class="num" style="font-weight:400">${r.id}</td>`+
-      cols.map(c=>`<td class="num">${fmt(c,r[c])}${c==='bqall'&&state.vj?`<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${t('t.py')} ${fmt(c,r.bqall__vj)}</span>`:''}</td>`).join('')+`</tr>`).join('')+
+      cols.map(c=>`<td class="num">${fmt(c,r[c])}${c==='quote2'&&state.vj?`<br><span style="font-weight:400;color:var(--fg-muted);font-size:11px">${t('t.py')} ${fmt(c,r.quote2__vj)}</span>`:''}</td>`).join('')+`</tr>`).join('')+
     `</tbody>`;
   el.querySelectorAll('thead th').forEach(th=>th.onclick=()=>{
     const c=th.dataset.c;
