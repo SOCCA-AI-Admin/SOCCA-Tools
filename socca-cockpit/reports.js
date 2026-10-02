@@ -19,7 +19,7 @@ const CUTM = D.meta.leadCutMonth ?? 60;
 const TEAM_ORDER = ['FUSU','FUNO','FUSO','FUFA','FUCH','FUAT','FUIT','FUCZ','FUES','FUHR',
                     'FUNL','FUNW','FUTU','TECA','SWIM','LATR'];
 /* Zielmärkte des CSR */
-const CSR_MAIN = ['ES','I','HR','CZ','A','HU','TR'];
+const CSR_MAIN = ['ES','I','HR','CZ','A','HU','TR','CH','NL'];
 
 /* --- Aggregation über ganze Monate ------------------------------------ */
 /* p: {team, dest, herk} — jedes Feld optional */

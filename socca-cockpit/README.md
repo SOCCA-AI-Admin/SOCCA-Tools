@@ -571,12 +571,12 @@ jeweils für einen frei wählbaren Monat:
 |---|---|---|
 | Monatsvergleich | Alle Teams nebeneinander, Monat gegen Vorjahresmonat, AP und Δ — wie die bisherige Excel-Übersicht | 1 Seite |
 | Team Status Report | Ein Team, Monat / 3 Monate / 12 Monate gegen Vorjahr mit Trend — wie Blatt *Report* | 2 Seiten je Team |
-| Country Status Report | Ein Zielland, gleiche Zeitfenster — Standard sind ES, I, HR, CZ, A, HU, TR | 2 Seiten je Land |
+| Country Status Report | Ein Zielland, gleiche Zeitfenster — Standard sind ES, I, HR, CZ, A, HU, TR, CH, NL | 2 Seiten je Land |
 
 **Präsentieren** öffnet den Bericht bildschirmfüllend. Die Pfeiltasten blättern
 durch alle Teams, alle Länder oder beim Monatsvergleich durch die Monate, *Esc*
 beendet. **Drucken / PDF** druckt den aktuellen Bericht, **Alle drucken** das
-komplette Meeting-Paket — 16 TSR oder 7 CSR in einem Durchgang, A4 quer. Im
+komplette Meeting-Paket — 16 TSR oder 9 CSR in einem Durchgang, A4 quer. Im
 Druckdialog als Ziel *Als PDF speichern* wählen, dann entsteht das PDF.
 
 Läuft das Cockpit in einer abgeschotteten Vorschau (Artefakt auf claude.ai,
