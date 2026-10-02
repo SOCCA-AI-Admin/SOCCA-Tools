@@ -622,6 +622,12 @@ add('rp.sportSection', 'Sportarten', 'Sporten', 'Deportes', 'Sport', 'Sportovi',
 add('rp.sport', 'Sportart', 'Sport', 'Deporte', 'Sport', 'Sport', 'Sport', 'Idrett', 'Spor', 'Sportág')
 add('rp.last12', 'letzte 12 Monate', 'laatste 12 maanden', 'últimos 12 meses', 'ultimi 12 mesi',
     'zadnjih 12 mjeseci', 'posledních 12 měsíců', 'siste 12 måneder', 'son 12 ay', 'utolsó 12 hónap')
+add('rp.last3', 'letzte 3 Monate', 'laatste 3 maanden', 'últimos 3 meses', 'ultimi 3 mesi',
+    'zadnja 3 mjeseca', 'poslední 3 měsíce', 'siste 3 måneder', 'son 3 ay', 'utolsó 3 hónap')
+add('rp.span', 'Zeitraum der Tabellen', 'Periode van de tabellen', 'Periodo de las tablas', 'Periodo delle tabelle',
+    'Razdoblje tablica', 'Období tabulek', 'Periode for tabellene', 'Tablo dönemi', 'Táblázatok időszaka')
+add('rp.spanMonth', 'Berichtsmonat', 'Rapportmaand', 'Mes del informe', 'Mese del report', 'Mjesec izvješća',
+    'Měsíc reportu', 'Rapportmåned', 'Rapor ayı', 'Jelentési hónap')
 add('rp.share', 'Anteil DB', 'Aandeel DB', 'Cuota margen', 'Quota margine', 'Udio doprinosa',
     'Podíl příspěvku', 'Andel DB', 'Katkı payı oranı', 'Fedezet aránya')
 add('rp.dbPY', 'DB zum VJ', 'DB t.o.v. VJ', 'Margen vs AA', 'Margine vs AP prec.', 'Doprinos prema PG',

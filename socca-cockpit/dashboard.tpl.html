@@ -81,6 +81,8 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
 .chip[aria-pressed=true]{background:var(--fg-strong);color:var(--bg);border-color:var(--fg-strong)}
 .chip.sm{font-size:12px;padding:4px 9px}
 .spacer{flex:1 1 auto}
+.controls .brk{flex-basis:100%;height:0}
+.controls .inner{row-gap:calc(var(--s-5) / 2)}
 
 /* ---------- Bausteine ---------- */
 section{margin-bottom:var(--s-7);scroll-margin-top:calc(var(--ctrlh,0px) + 16px)}
@@ -396,6 +398,7 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
       <label for="team" data-i18n="ctl.team"></label>
       <select id="team"></select>
     </div>
+    <div class="brk"></div>
     <div class="field">
       <label for="dest" data-i18n="ctl.dest"></label>
       <select id="dest"></select>
@@ -610,6 +613,7 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
       </div>
       <div class="field"><label for="rpMonth" data-i18n="rp.month"></label><select id="rpMonth"></select></div>
       <div class="field"><label for="rpKey" id="rpKeyLab"></label><select id="rpKey"></select></div>
+      <div class="field" hidden><label for="rpSpan" data-i18n="rp.span"></label><select id="rpSpan"></select></div>
       <div class="spacer"></div>
       <button class="chip" id="rpPresent" data-i18n="rp.present"></button>
       <button class="chip" id="rpPrint" data-i18n="rp.print"></button>
@@ -923,7 +927,7 @@ function shiftYear(d,n){ return new Date(d.getFullYear()-n, d.getMonth(), d.getD
 /* ============================ Aufbau UI ============================ */
 function initControls(){
   const box = document.getElementById('presets');
-  box.innerHTML = ['1m','3m','12m','gj','kj','all']
+  box.innerHTML = ['1m','3m','12m','gj','kj']
     .map(id=>`<button class="chip sm" data-p="${id}" data-i18n="p.${id}"></button>`).join('');
   box.addEventListener('click',e=>{
     const b=e.target.closest('[data-p]'); if(!b) return;
@@ -1030,9 +1034,13 @@ function applyPreset(p){
   /* Schnellauswahl ab heute: „Laufender Monat“ am 01.10. = 01.10.–01.10. */
   const end = today();
   let start;
+  /* 3 und 12 Monate taggenau rückwärts: am 02.10.2026 = 03.10.2025–02.10.2026 */
+  const back = n => { const y=end.getFullYear(), m=end.getMonth()-n, d=end.getDate();
+    const last=new Date(y, m+1, 0).getDate();          // 31. in kürzeren Monaten abfangen
+    return new Date(y, m, Math.min(d,last)+1); };
   if(p==='1m') start=new Date(end.getFullYear(),end.getMonth(),1);
-  else if(p==='3m'){ start=new Date(end.getFullYear(),end.getMonth()-2,1); }
-  else if(p==='12m'){ start=new Date(end.getFullYear(),end.getMonth()-11,1); }
+  else if(p==='3m') start=back(3);
+  else if(p==='12m') start=back(12);
   else if(p==='gj'){ const y=end.getMonth()>=6?end.getFullYear():end.getFullYear()-1; start=new Date(y,6,1); }
   else if(p==='kj') start=new Date(end.getFullYear(),0,1);
   else start=localDay(FIRST);
@@ -1521,7 +1529,7 @@ function renderMaps(){
 /* ============================ Frag das Cockpit ============================ */
 /* Nur sichtbar, wenn der Frage-Server läuft (Docker-Betrieb mit anthropic.env).
    In der Einzeldatei und im Artefakt bleibt der Bereich ausgeblendet. */
-const ASK = {limit:0, remaining:0, busy:false};
+const ASK = {limit:0, remaining:0, busy:false, lastSec:null};
 function escHTML(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function mdInline(s){
   return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
@@ -1580,7 +1588,7 @@ async function askRun(q){
     const steps = (j.steps||[]).length ? `<details><summary>${escHTML(t('ask.steps'))}</summary><ul>${
       j.steps.map(x=>'<li>'+escHTML(x)+'</li>').join('')}</ul></details>` : '';
     out.innerHTML = mdToHtml(j.answer) + steps;
-    askMeta(j.seconds);
+    ASK.lastSec=j.seconds; askMeta(j.seconds);
   }catch(e){
     out.innerHTML=`<p class="err">${escHTML(t('ask.error'))}</p>`; askMeta();
   }finally{ ASK.busy=false; btn.disabled=false; }
@@ -1588,10 +1596,16 @@ async function askRun(q){
 function initAsk(){
   const sec=document.getElementById('s-ask');
   if(!sec || location.protocol==='file:') return;
-  fetch('api/status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(s=>{
+  /* Der Zähler kommt immer vom Server (gemeinsam für alle Kollegen) — beim
+     Laden, wenn das Fenster wieder in den Vordergrund kommt, und alle 2 Minuten. */
+  const status = () => fetch('api/status?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(s=>{
     if(!s || !s.enabled) return;
-    ASK.limit=s.limit; ASK.remaining=s.remaining; sec.hidden=false; askMeta();
+    ASK.limit=s.limit; ASK.remaining=s.remaining; sec.hidden=false;
+    if(!ASK.busy) askMeta(ASK.lastSec);
   }).catch(()=>{});
+  status();
+  setInterval(()=>{ if(!document.hidden) status(); }, 120000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) status(); });
   const q=document.getElementById('askQ');
   document.getElementById('askForm').onsubmit = e => { e.preventDefault(); askRun(q.value); };
   document.querySelectorAll('#askEx button').forEach(b=>b.onclick=()=>{ q.value=b.textContent; askRun(q.value); });

@@ -67,39 +67,75 @@ def load_env():
 
 
 # ------------------------------------------------------------- Tageslimit
+# Der Zähler liegt in .state/ask_usage.json und gilt für alle Nutzer
+# gemeinsam. Kann die Datei nicht geschrieben werden (z. B. falsche Rechte
+# auf .state), zählt der Server im Speicher weiter und meldet das im Log —
+# so springt die Anzeige beim Neuladen nie wieder auf das volle Limit.
 _usage_lock = threading.Lock()
+_usage_mem = {}
+_usage_warned = False
 
 
 def _today():
     return datetime.date.today().isoformat()
 
 
-def usage_remaining(limit):
+def _usage_read():
     try:
         u = json.loads(USAGE_FILE.read_text())
+        return u if isinstance(u, dict) else {}
     except Exception:
-        u = {}
-    return max(0, limit - u.get(_today(), 0))
+        return {}
+
+
+def usage_used():
+    today = _today()
+    return max(int(_usage_read().get(today, 0) or 0), _usage_mem.get(today, 0))
+
+
+def usage_remaining(limit):
+    return max(0, limit - usage_used())
 
 
 def usage_take(limit):
     """Eine Frage vom Tageskontingent abbuchen. False, wenn aufgebraucht."""
+    global _usage_warned
     with _usage_lock:
-        try:
-            u = json.loads(USAGE_FILE.read_text())
-        except Exception:
-            u = {}
         today = _today()
-        n = u.get(today, 0)
+        n = usage_used()
         if n >= limit:
             return False
-        u = {k: v for k, v in u.items() if k >= (datetime.date.today() - datetime.timedelta(days=60)).isoformat()}
+        _usage_mem.clear()
+        _usage_mem[today] = n + 1
+        u = _usage_read()
+        cutoff = (datetime.date.today() - datetime.timedelta(days=60)).isoformat()
+        u = {k: v for k, v in u.items() if k >= cutoff}
         u[today] = n + 1
-        STATE.mkdir(exist_ok=True)
-        tmp = USAGE_FILE.with_suffix('.tmp')
-        tmp.write_text(json.dumps(u))
-        os.replace(tmp, USAGE_FILE)
+        try:
+            STATE.mkdir(exist_ok=True)
+            tmp = USAGE_FILE.with_suffix('.tmp')
+            tmp.write_text(json.dumps(u))
+            os.replace(tmp, USAGE_FILE)
+        except OSError as e:
+            if not _usage_warned:
+                print(f'WARNUNG: Fragezähler kann nicht gespeichert werden ({e}). '
+                      f'Rechte von {STATE} prüfen — gezählt wird bis zum Neustart im Speicher.', flush=True)
+                _usage_warned = True
         return True
+
+
+def usage_check():
+    """Beim Start prüfen, ob .state beschreibbar ist."""
+    try:
+        STATE.mkdir(exist_ok=True)
+        probe = STATE / '.ask_probe'
+        probe.write_text('ok')
+        probe.unlink()
+        return True
+    except OSError as e:
+        print(f'WARNUNG: {STATE} ist für den Frage-Server nicht beschreibbar ({e}). '
+              f'Der Fragezähler überlebt dann keinen Neustart.', flush=True)
+        return False
 
 
 def log(line):
@@ -319,7 +355,8 @@ class Handler(BaseHTTPRequestHandler):
             cfg = load_env()
             ok = bool(cfg['key']) and DATA_FILE.exists()
             return self.send_json(200, {'enabled': ok, 'model': cfg['model'] if ok else None,
-                                        'limit': cfg['limit'], 'remaining': usage_remaining(cfg['limit'])})
+                                        'limit': cfg['limit'], 'remaining': usage_remaining(cfg['limit']),
+                                        'used': usage_used(), 'day': _today()})
         self.send_json(404, {'error': 'not found'})
 
     def do_POST(self):
@@ -362,9 +399,10 @@ def main():
     srv = ThreadingHTTPServer(('0.0.0.0', port), Handler)
     srv.cockpit = cq.Cockpit(str(DATA_FILE))
     cfg = load_env()
+    usage_check()
     print(f'SOCCA Frage-Server auf Port {port} · Modell {cfg["model"]} · '
           f'{"API-Schlüssel gefunden" if cfg["key"] else "KEIN API-Schlüssel (anthropic.env) — Fragefeld bleibt aus"}'
-          f' · Tageslimit {cfg["limit"]}', flush=True)
+          f' · Tageslimit {cfg["limit"]}, heute schon {usage_used()} gestellt', flush=True)
     srv.serve_forever()
 
 

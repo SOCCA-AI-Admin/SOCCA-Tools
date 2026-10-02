@@ -266,9 +266,10 @@ function miniChart(M, p, id, withAP){
   return s+leg;
 }
 
-/* Aufteilung nach einer Dimension, 12 Monate, mit Vorjahr */
-function splitTable(M, p, dim, limit, label){
-  const [a,b]=W.m12(M);
+/* Aufteilung nach einer Dimension mit Vorjahr; span = Anzahl Monate bis
+   einschließlich Berichtsmonat (1 = nur der Berichtsmonat, 3, 12) */
+function splitTable(M, p, dim, limit, label, span=12){
+  const a=M-span+1, b=M;
   const keyOf = r => dim==='dest' ? (r[12]>=0?D.dests[r[12]]:null)
                    : dim==='herk' ? (r[3]>=0?D.regs[r[3]]:null)
                    : dim==='team' ? (r[1]>=0?D.teams[r[1]]:null)
@@ -330,7 +331,7 @@ function apTiles(M, team, kind){
    2) Team Status Report
    ====================================================================== */
 function reportTSR(M, team){
-  const p={team};
+  const p={team}, sp=RS.span||1, sl=spanLabel(M, sp);
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
              '*webq','*quote3','*quote1','*fte','*dbfte','*bookfte'];
   const k=kpiBlock(M,p,ids);
@@ -341,8 +342,8 @@ function reportTSR(M, team){
        <div class="rcard"><h4>${t('rp.trendSection')} · ${MBY.teams.n} <span class="st">★</span></h4>${miniChart(M,p,'teams',true)}</div>
      </div>`,
     `<div class="rgrid g2">
-       <div class="rcard"><h4>${t('rp.destSection')} · ${t('rp.last12')}</h4>${splitTable(M,p,'dest',10,t('ctl.dest'))}</div>
-       <div class="rcard"><h4>${t('rp.hotelSection')} · ${t('rp.last12')} <span class="st">★</span></h4>${splitTable(M,p,'hotel',10,t('ho.hotel'))}</div>
+       <div class="rcard"><h4>${t('rp.destSection')} · ${sl}</h4>${splitTable(M,p,'dest',10,t('ctl.dest'),sp)}</div>
+       <div class="rcard"><h4>${t('rp.hotelSection')} · ${sl} <span class="st">★</span></h4>${splitTable(M,p,'hotel',10,t('ho.hotel'),sp)}</div>
        <div class="rcard"><h4>${t('rp.apSection')} · ${MBY.leads.n} <span class="st">★</span></h4>${apTiles(M,team,'leads')}</div>
        <div class="rcard"><h4>${t('rp.trendSection')} · ${MBY.leads.n} <span class="st">★</span></h4>${miniChart(M,p,'leads',true)}</div>
      </div>`];
@@ -356,8 +357,12 @@ function reportTSR(M, team){
 /* ======================================================================
    3) Country Status Report
    ====================================================================== */
+/* Überschrift der Detailtabellen je nach gewähltem Zeitraum */
+function spanLabel(M, span){
+  return span===1 ? monLabel(M,true) : span===3 ? t('rp.last3') : t('rp.last12');
+}
 function reportCSR(M, dest){
-  const p={dest};
+  const p={dest}, sp=RS.span||1, sl=spanLabel(M, sp);
   const ids=['leads','props','teams','book','vk','db','ros','quote2','uteam','dbteam','anights','apax','mpn',
              '*webq','*quote3','*quote1'];
   const k=kpiBlock(M,p,ids);
@@ -365,12 +370,12 @@ function reportCSR(M, dest){
     `<div class="rgrid g2">
        <div class="rcard span2"><h4>${t('rp.kpis')}</h4><div class="tablewrap rtw">${k.html}</div></div>
        <div class="rcard"><h4>${t('rp.trendSection')} · ${MBY.teams.n} <span class="st">★</span></h4>${miniChart(M,p,'teams',false)}</div>
-       <div class="rcard"><h4>${t('rp.sportSection')} · ${t('rp.last12')} <span class="st">★</span></h4>${splitTable(M,p,'sport',6,t('rp.sport'))}</div>
+       <div class="rcard"><h4>${t('rp.sportSection')} · ${sl} <span class="st">★</span></h4>${splitTable(M,p,'sport',6,t('rp.sport'),sp)}</div>
      </div>`,
     `<div class="rgrid g2">
-       <div class="rcard"><h4>${t('rp.teamSection')} · ${t('rp.last12')}</h4>${splitTable(M,p,'team',10,t('ctl.team'))}</div>
-       <div class="rcard"><h4>${t('rp.herkSection')} · ${t('rp.last12')}</h4>${splitTable(M,p,'herk',10,t('ctl.herk'))}</div>
-       <div class="rcard span2"><h4>${t('rp.hotelSection')} · ${t('rp.last12')} <span class="st">★</span></h4>${splitTable(M,p,'hotel',10,t('ho.hotel'))}</div>
+       <div class="rcard"><h4>${t('rp.teamSection')} · ${sl}</h4>${splitTable(M,p,'team',10,t('ctl.team'),sp)}</div>
+       <div class="rcard"><h4>${t('rp.herkSection')} · ${sl}</h4>${splitTable(M,p,'herk',10,t('ctl.herk'),sp)}</div>
+       <div class="rcard span2"><h4>${t('rp.hotelSection')} · ${sl} <span class="st">★</span></h4>${splitTable(M,p,'hotel',10,t('ho.hotel'),sp)}</div>
      </div>`];
   return page({
     kind: t('rp.csr'), title: cname(dest).replace(/\s*\([^)]*\)$/,''),
@@ -400,7 +405,7 @@ function page({kind,title,meta,sheets,notes}){
 /* ======================================================================
    Bedienung
    ====================================================================== */
-const RS = { kind:'cmp', month:LAST_M, team:'FUSU', dest:'HR', present:false };
+const RS = { kind:'cmp', month:LAST_M, team:'FUSU', dest:'HR', span:1, present:false };
 
 function reportList(){
   if(RS.kind==='tsr') return TEAM_ORDER.filter(x=>D.teams.includes(x));
@@ -422,6 +427,7 @@ function initReports(){
   };
   const fillKeys=()=>{
     const el=document.getElementById('rpKey'), lab=document.getElementById('rpKeyLab');
+    document.getElementById('rpSpan').parentElement.hidden = RS.kind==='cmp';
     if(RS.kind==='cmp'){ el.parentElement.hidden=true; return; }
     el.parentElement.hidden=false;
     if(RS.kind==='tsr'){
@@ -438,9 +444,14 @@ function initReports(){
       el.value=RS.dest;
     }
   };
-  RS.refreshSelects=()=>{ fillMonths(); fillKeys(); };
+  RS.refreshSelects=()=>{ fillMonths(); fillKeys(); fillSpan(); };
   document.querySelectorAll('#rpKind [data-k]').forEach(b=>b.onclick=()=>{ RS.kind=b.dataset.k; fillKeys(); drawReport(); });
   ms.onchange=()=>{ RS.month=+ms.value; drawReport(); };
+  const sp=document.getElementById('rpSpan');
+  const fillSpan=()=>{ sp.innerHTML=[[1,'rp.spanMonth'],[3,'rp.last3'],[12,'rp.last12']]
+    .map(([v,k])=>{ const l=t(k); return `<option value="${v}">${l.charAt(0).toUpperCase()+l.slice(1)}</option>`; }).join(''); sp.value=String(RS.span); };
+  fillSpan();
+  sp.onchange=()=>{ RS.span=+sp.value; drawReport(); };
   document.getElementById('rpKey').onchange=e=>{ if(RS.kind==='tsr') RS.team=e.target.value; else RS.dest=e.target.value; drawReport(); };
   document.getElementById('rpPrint').onclick=()=>printReports(false);
   document.getElementById('rpPrintAll').onclick=()=>printReports(true);

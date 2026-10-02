@@ -240,6 +240,9 @@ keine Kundennamen, keine Mail-Adressen. Unter jeder Antwort zeigt
   den Wortlaut. Der Verbrauch in Dollar steht in der Claude Console.
 - Das Tageslimit schützt das Budget, auch wenn alle im Netz fragen können.
   Zusätzlich greift das Limit des Workspace in der Console.
+- Der Zähler „heute noch … von …“ gilt für alle Kollegen gemeinsam und steht
+  in `.state/ask_usage.json`. Die Anzeige holt ihn beim Laden, beim Zurück-
+  kehren ins Fenster und alle 2 Minuten vom Server.
 
 ### Wenn etwas klemmt
 
@@ -248,6 +251,7 @@ keine Kundennamen, keine Mail-Adressen. Unter jeder Antwort zeigt
 | Fragefeld erscheint nicht | `docker compose ps` — läuft *ask*? `docker compose logs ask` sagt, ob ein Schlüssel gefunden wurde. Rechte: `anthropic.env` muss für den Container-Benutzer lesbar sein |
 | „konnte nicht beantwortet werden“ | `tail .state/ask.log` — häufig: Guthaben leer, Schlüssel falsch, Workspace-Limit erreicht, kein Internet (dann `HTTPS_PROXY` in `docker-compose.yml`) |
 | „Tageslimit erreicht“ | `ASK_DAILY_LIMIT` erhöhen oder bis morgen warten |
+| Zähler springt nach Neustart von *ask* auf das volle Limit | `docker compose logs ask` zeigt eine WARNUNG, wenn `.state` nicht beschreibbar ist — dann `chown -R` auf den Container-Benutzer (`COCKPIT_UID` in `.env`) |
 
 ---
 
@@ -692,7 +696,13 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
 - **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
   mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
 - Die **Schnellauswahl** rechnet ab heute: *Laufender Monat* am 01.10. ist
-  der 01.10.–01.10., *Geschäftsjahr* der 01.07. bis heute.
+  der 01.10.–01.10., *3 Monate* und *12 Monate* zählen taggenau zurück (am
+  02.10.2026: 03.07.–02.10. bzw. 03.10.2025–02.10.2026), *Geschäftsjahr* ist
+  der 01.07. bis heute. Beim Start sind *12 Monate* gewählt.
+- Im **Team und Country Status Report** zeigen die Detailtabellen
+  (Reiseländer, Sportarten, Teams, Kundenherkunft, Hotels) standardmäßig den
+  Berichtsmonat; *Zeitraum der Tabellen* schaltet
+  auf die letzten 3 oder 12 Monate bis einschließlich Berichtsmonat um.
 - Der **Hotelblick** folgt den Filtern für Bereich, Team und Reiseland.
 - **Unique Anfragen und Angebote je Hotel** gibt es je Team und je Reiseland (Land
   des Hotels), nicht je Kundenherkunft oder Region. Eine Anfrage zählt bei
