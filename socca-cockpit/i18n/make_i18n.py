@@ -16,7 +16,7 @@ Arbeitsmappe (Sales, Leads, Props, Goals, Locations, Report).
 import json, sys
 
 LANGS = [
-    ('de', 'Deutsch'), ('nl', 'Nederlands'), ('es', 'Español'),
+    ('de', 'Deutsch'), ('en', 'English'), ('nl', 'Nederlands'), ('es', 'Español'),
     ('it', 'Italiano'), ('hr', 'Hrvatski'), ('cs', 'Čeština'),
     ('nb', 'Norsk'), ('tr', 'Türkçe'), ('hu', 'Magyar'),
 ]
@@ -1075,9 +1075,20 @@ DEFS = [
       'Minden szálloda, amelyhez az időszakban legalább egy ügy tartozik. Amint a terület, csapat, ország vagy régió szűkítve van, az Érdeklődések és Ajánlatok oszlopok eltűnnek, mert ezek az adatok nem állnak rendelkezésre egyszerre szállodánként és csapatonként vagy országonként.')),
 ]
 
+# add() und DEFS fuehren die neun Sprachen in fester Reihenfolge;
+# Englisch kommt separat aus en.py.
+BASE = ['de', 'nl', 'es', 'it', 'hr', 'cs', 'nb', 'tr', 'hu']
 for key, titles, bodies in DEFS:
-    S['def.%s.t' % key] = dict(zip([c for c, _ in LANGS], titles))
-    S['def.%s.d' % key] = dict(zip([c for c, _ in LANGS], bodies))
+    S['def.%s.t' % key] = dict(zip(BASE, titles))
+    S['def.%s.d' % key] = dict(zip(BASE, bodies))
+
+sys.path.insert(0, __import__('os').path.dirname(__import__('os').path.abspath(__file__)))
+from en import EN
+for k, v in EN.items():
+    if k in S:
+        S[k]['en'] = v
+    else:
+        print('en.py: unbekannter Schluessel %s' % k, file=sys.stderr)
 
 if __name__ == '__main__':
     codes = [c for c, _ in LANGS]

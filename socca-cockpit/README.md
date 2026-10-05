@@ -190,7 +190,7 @@ Die Container starten nach einem Neustart des Servers von selbst.
 ## Frag das Cockpit (Freitext-Fragen mit Claude)
 
 Oben im Cockpit gibt es ein Fragefeld. Man stellt eine Frage in eigenen
-Worten, in jeder der neun Sprachen, und bekommt eine kurze Antwort mit
+Worten, in jeder der zehn Sprachen, und bekommt eine kurze Antwort mit
 Tabelle. Beispiele: *„Welche drei Hotels in Kroatien hatten im GJ 2025/26 die
 meisten Anfragen?“*, *„Wie steht FUNO gegenüber dem Vorjahr?“*
 
@@ -629,8 +629,8 @@ Eine Datei `data/AP_Leads.csv` (Team;Monat;Leads, Vorlage in `deploy/`)
 
 ## Sprachen
 
-Das Cockpit spricht Deutsch, Niederländisch, Spanisch, Italienisch, Kroatisch,
-Tschechisch, Norwegisch, Türkisch und Ungarisch. Die Auswahl sitzt oben rechts
+Das Cockpit spricht Deutsch, Englisch, Niederländisch, Spanisch, Italienisch,
+Kroatisch, Tschechisch, Norwegisch, Türkisch und Ungarisch. Die Auswahl sitzt oben rechts
 und wird im Browser gemerkt; beim ersten Aufruf richtet sie sich nach der
 Spracheinstellung des Browsers.
 
@@ -640,7 +640,8 @@ bleiben als Eigennamen stehen — Bayern heißt auch auf Kroatisch Bayern.
 Unübersetzt bleiben außerdem Team, Pax, FTE, ROS, WebID, Annual Planning und
 die Blattnamen der Arbeitsmappe.
 
-Übersetzungen werden in `i18n/make_i18n.py` geändert, nicht in `i18n.js`:
+Übersetzungen werden in `i18n/make_i18n.py` geändert, Englisch in
+`i18n/en.py` — nicht in `i18n.js`:
 
 ```bash
 python3 i18n/make_i18n.py > i18n.js
@@ -658,7 +659,8 @@ greift dann Deutsch.
 | `build.py` | Setzt Vorlage, Kartengeometrie und Daten zur fertigen Seite zusammen |
 | `dashboard.tpl.html` | Die Oberfläche — Struktur, Stil und die gesamte Auswertungslogik |
 | `geo/geo.js` | Kartengeometrie als SVG-Pfade, fertig gebaut |
-| `i18n.js` | Oberflächentexte in neun Sprachen, fertig gebaut |
+| `i18n.js` | Oberflächentexte in zehn Sprachen, fertig gebaut |
+| `i18n/en.py` | Englische Texte, werden von `make_i18n.py` eingelesen |
 | `i18n/make_i18n.py` | Erzeugt `i18n.js` neu — hier werden Übersetzungen geändert |
 | `geo/make_geo.py` | Erzeugt `geo.js` neu, falls der Kartenausschnitt geändert wird |
 | `update.sh` | Der Wächter: prüft auf Änderung, baut, protokolliert |

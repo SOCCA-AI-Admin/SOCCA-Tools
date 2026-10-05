@@ -40,7 +40,7 @@ API_URL = os.environ.get('ANTHROPIC_BASE_URL', 'https://api.anthropic.com') + '/
 MAX_ROUNDS = 8                 # Werkzeugrunden je Frage
 MAX_QUESTION = 600             # Zeichen
 
-LANG_NAMES = {'de': 'Deutsch', 'nl': 'Niederländisch', 'es': 'Spanisch', 'it': 'Italienisch',
+LANG_NAMES = {'de': 'Deutsch', 'en': 'Englisch', 'nl': 'Niederländisch', 'es': 'Spanisch', 'it': 'Italienisch',
               'hr': 'Kroatisch', 'cs': 'Tschechisch', 'nb': 'Norwegisch (Bokmål)',
               'tr': 'Türkisch', 'hu': 'Ungarisch'}
 
@@ -254,7 +254,7 @@ Regeln:
 - Zahlen im Format der Antwortsprache; Euro gerundet (ab 10.000 € in Tsd €), Quoten in Prozent mit einer Nachkommastelle.
 - Team-Codes (FUNO, FUSU, TECA …) nicht übersetzen. Teams (Zählgröße) ≠ Buchungen.
 - Begriffe wie im Cockpit: „Unique Anfragen“ (leads) und „Anfragen gesamt“ (leads_all); „Buchungsquote“ = Buchungen ÷ Unique Anfragen (quote2), „Abschlussquote“ = Buchungen ÷ Angebote. Nur „Anfragen“ in der Frage = Unique Anfragen. „Laufender Monat“ = vom 1. des aktuellen Kalendermonats bis heute.
-- „Unique“ und „Anfragen“ nur auf Deutsch; in anderen Sprachen die Begriffe der Oberfläche: nl unieke aanvragen / aanvragen totaal, es solicitudes únicas / solicitudes totales, it richieste uniche / richieste totali, hr jedinstveni upiti / upiti ukupno, cs unikátní poptávky / poptávky celkem, nb unike forespørsler / forespørsler totalt, tr tekil talepler / toplam talepler, hu egyedi érdeklődések / összes érdeklődés.
+- „Unique“ und „Anfragen“ nur auf Deutsch; in anderen Sprachen die Begriffe der Oberfläche: en unique inquiries / total inquiries (Buchungsquote = booking rate, Abschlussquote = close rate), nl unieke aanvragen / aanvragen totaal, es solicitudes únicas / solicitudes totales, it richieste uniche / richieste totali, hr jedinstveni upiti / upiti ukupno, cs unikátní poptávky / poptávky celkem, nb unike forespørsler / forespørsler totalt, tr tekil talepler / toplam talepler, hu egyedi érdeklődések / összes érdeklődés.
 """
 
 
