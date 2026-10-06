@@ -156,6 +156,8 @@ FILTER_SCHEMA = {
         'regions': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Bundesland/Kanton der Kunden, Code oder Name, z. B. "BY" oder "Bayern"'},
         'hotels': {'type': 'array', 'items': {'type': 'integer'}, 'description': 'WebIDs (mit find_hotels ermitteln)'},
         'sports': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Sportart-Codes laut get_overview'},
+        'arrival_from': {'type': 'string', 'description': 'Reisezeitraum: Anreise ab YYYY-MM-DD (Sales Spalte B, C_AP Startdatum)'},
+        'arrival_to': {'type': 'string', 'description': 'Reisezeitraum: Anreise bis YYYY-MM-DD, einschließlich'},
     },
 }
 
@@ -175,8 +177,10 @@ TOOLS = [
     {
         'name': 'query',
         'description': ('Kennzahlen des Cockpits für einen Zeitraum berechnen, optional gruppiert, gefiltert und mit '
-                        'Vorjahresvergleich. Rechnet exakt wie das Cockpit. Datumsangaben beziehen sich auf das '
-                        'Buchungsdatum (bzw. Anfrage-/Angebotsdatum). Werte: Beträge in Euro, Quoten als Anteil (0.25 = 25 %).'),
+                        'Vorjahresvergleich. Rechnet exakt wie das Cockpit. date_from/date_to = Buchungs- bzw. Erfassungszeitraum '
+                        '(Buchungsdatum Sales Spalte C, Anfragedatum, Angebotsversanddatum). Für „Reisen/Anreisen im Zeitraum X“ '
+                        'zusätzlich filters.arrival_from/arrival_to setzen und date_from/date_to weit genug fassen (z. B. ab 2019-01-01). '
+                        'Werte: Beträge in Euro, Quoten als Anteil (0.25 = 25 %).'),
         'input_schema': {
             'type': 'object',
             'properties': {
@@ -253,7 +257,7 @@ Regeln:
 - Kurz und sachlich: zuerst die Antwort in ein, zwei Sätzen, dann bei Bedarf eine kleine Markdown-Tabelle (höchstens 12 Zeilen). Keine Überschriften, keine Emojis.
 - Zahlen im Format der Antwortsprache; Euro gerundet (ab 10.000 € in Tsd €), Quoten in Prozent mit einer Nachkommastelle.
 - Team-Codes (FUNO, FUSU, TECA …) nicht übersetzen. Teams (Zählgröße) ≠ Buchungen.
-- Begriffe wie im Cockpit: „Unique Anfragen“ (leads) und „Anfragen gesamt“ (leads_all); „Buchungsquote“ = Buchungen ÷ Unique Anfragen (quote2), „Abschlussquote“ = Buchungen ÷ Angebote. Nur „Anfragen“ in der Frage = Unique Anfragen. „Laufender Monat“ = vom 1. des aktuellen Kalendermonats bis heute.
+- Begriffe wie im Cockpit: „Unique Anfragen“ (leads) und „Anfragen gesamt“ (leads_all); „Buchungsquote“ = Buchungen ÷ Unique Anfragen (quote2), „Abschlussquote“ = Buchungen ÷ Angebote. Nur „Anfragen“ in der Frage = Unique Anfragen. „Laufender Monat“ = vom 1. des aktuellen Kalendermonats bis heute. Zeiträume ohne Zusatz beziehen sich auf das Buchungs- bzw. Erfassungsdatum; geht es um Reise-/Anreisezeiträume, den Filter arrival_from/arrival_to nutzen.
 - „Unique“ und „Anfragen“ nur auf Deutsch; in anderen Sprachen die Begriffe der Oberfläche: en unique inquiries / total inquiries (Buchungsquote = booking rate, Abschlussquote = close rate), nl unieke aanvragen / aanvragen totaal, es solicitudes únicas / solicitudes totales, it richieste uniche / richieste totali, hr jedinstveni upiti / upiti ukupno, cs unikátní poptávky / poptávky celkem, nb unike forespørsler / forespørsler totalt, tr tekil talepler / toplam talepler, hu egyedi érdeklődések / összes érdeklődés.
 """
 
@@ -290,7 +294,8 @@ def context_note(ctx):
     """Aktuelle Auswahl im Cockpit als Zusatz zur Frage."""
     if not isinstance(ctx, dict):
         return ''
-    labels = {'von': 'von', 'bis': 'bis', 'bereich': 'Teamgruppe', 'team': 'Team', 'reiseland': 'Reiseland',
+    labels = {'von': 'Buchungs-/Erfassungszeitraum von', 'bis': 'bis', 'reise_von': 'Reisezeitraum (Anreise) von',
+              'reise_bis': 'Anreise bis', 'bereich': 'Teamgruppe', 'team': 'Team', 'reiseland': 'Reiseland',
               'herkunft': 'Herkunft', 'region': 'Region'}
     parts = [f'{labels[k]} {str(v)[:40]}' for k, v in ctx.items()
              if k in labels and v not in (None, '', 'all')]

@@ -157,7 +157,7 @@ class Cockpit:
                 'quellen': D['meta'].get('sources'),
             },
             'regeln': [
-                'Stichtag aller Buchungs-, Umsatz- und DB-Kennzahlen ist das Buchungsdatum, nicht das Reisedatum.',
+                'Buchungszeitraum = Buchungsdatum (Sales Spalte C); Erfassungszeitraum = Anfragedatum bzw. Angebotsversanddatum (C_AP). date_from/date_to filtern immer danach. Reisezeitraum = Anreise (Sales Spalte B, C_AP Startdatum) — optional über filters.arrival_from/arrival_to, dann zählt nur, was im Buchungs-/Erfassungszeitraum gebucht/erfasst wurde UND im Reisezeitraum anreist.',
                 'Geschäftsjahr (GJ, Annual Planning AP) läuft von 1. Juli bis 30. Juni; GJ 2025/26 = AP2025/26 = 01.07.2025–30.06.2026.',
                 'Unique Anfragen, Web-Anfragen und Angebote tagesgenau ab 01.01.2024 (Combit); davor nur monatlich je Team, ohne Länder/Hotel.',
                 'Begriffe: „Unique Anfragen“ (Kennzahl leads) = eine Mail-Adresse zählt einmal je Sales-Team und AP-Jahr; „Anfragen gesamt“ (leads_all) = jede Anfrage-Zeile. Sagt jemand nur „Anfragen“, sind die Unique Anfragen gemeint. Auf Hotelebene zählt eine Anfrage bei jedem Hotel, das der Kunde angefragt hat — Summe der Hotels > Gesamtzahl.',
@@ -248,6 +248,15 @@ class Cockpit:
             out.add(self.hidx_by_webid[w])
         return out
 
+    @staticmethod
+    def _arrival(a, b):
+        """Reisezeitraum (Anreise) als Datumspaar oder None."""
+        if not a and not b:
+            return None
+        a = datetime.date.fromisoformat(str(a)[:10]) if a else datetime.date(2000, 1, 1)
+        b = datetime.date.fromisoformat(str(b)[:10]) if b else datetime.date(2100, 12, 31)
+        return (a, b) if a <= b else (b, a)
+
     # ------------------------------------------------------- Abfrage
     def query(self, metrics, date_from, date_to, group_by='none', filters=None,
               sort_by=None, sort_desc=True, limit=25, compare_previous_year=False):
@@ -274,6 +283,7 @@ class Cockpit:
             region=self._regions(filters.get('regions')),
             hotel=self._hotels(filters.get('hotels')),
             sport=({str(s).upper() for s in filters['sports']} if filters.get('sports') else None),
+            arr=self._arrival(filters.get('arrival_from'), filters.get('arrival_to')),
         )
         notes = []
         cur = self._agg(f, t, group_by, spec, notes, 0)
@@ -383,9 +393,20 @@ class Cockpit:
     def _agg(self, f, t, g, spec, notes, shift):
         """Rohsummen je Gruppe. shift=1: Vorjahresdaten, Zeitschlüssel um ein Jahr nach vorn."""
         D = self.D
+        # Buchungs-/Erfassungszeitraum endet spätestens heute (Vorjahr: heute vor einem Jahr)
+        cap = shift_year(datetime.date.today(), -1) if shift else datetime.date.today()
+        if t > cap:
+            t = cap
         fi, ti = d2i(f), d2i(t)
         out = defaultdict(empty)
         kd = (lambda d: shift_year(d, shift)) if shift else (lambda d: d)
+        arr = None
+        if spec.get('arr'):
+            a0, a1 = spec['arr']
+            if shift:
+                a0, a1 = shift_year(a0, -1), shift_year(a1, -1)
+            arr = (d2i(a0), d2i(a1))
+        arr_ok = (lambda v: True) if arr is None else (lambda v: v is not None and arr[0] <= v <= arr[1])
 
         for r in D['bookings']:
             if r[0] < fi or r[0] > ti:
@@ -403,6 +424,8 @@ class Cockpit:
             if spec['sport'] and self._at(D['sports'], r[2]) not in spec['sport']:
                 continue
             if g == 'hotel' and r[4] < 0:
+                continue
+            if not arr_ok(r[13] if len(r) > 13 else None):
                 continue
             b = out[self._key_booking(g, r, kd(i2d(r[0])))]
             b['book'] += 1; b['vk'] += r[5]; b['ek'] += r[6]; b['db'] += r[7]
@@ -425,6 +448,8 @@ class Cockpit:
                 if r[0] < fi or r[0] > ti:
                     continue
                 if spec['hotel'] and r[1] not in spec['hotel']:
+                    continue
+                if not arr_ok(r[7] if len(r) > 7 else None):
                     continue
                 land = self.hotel_by_idx[r[1]][2]
                 if spec['dest'] and land not in spec['dest']:
@@ -463,6 +488,8 @@ class Cockpit:
                     continue
                 if spec['herk'] and self._at(D['regs'], r[2]) not in spec['herk']:
                     continue
+                if not arr_ok(r[8] if len(r) > 8 else None):
+                    continue
                 d = kd(i2d(r[0]))
                 if g == 'team':
                     key = team
@@ -482,7 +509,9 @@ class Cockpit:
             # vor 2024: nur ganze Monate, nur je Team, ohne Länder
             mf, mt = midx(f), midx(t)
             if mf < LEAD_CUT_M:
-                if spec['dest'] or spec['herk'] or g in ('destination', 'origin_country'):
+                if arr:
+                    notes.append('Anfragen vor 2024 haben kein Anreisedatum — mit Reisezeitraum fehlen sie.')
+                elif spec['dest'] or spec['herk'] or g in ('destination', 'origin_country'):
                     notes.append('Anfragen vor 2024 gibt es nur je Team, nicht je Land — für diesen Teil fehlen sie.')
                 else:
                     full_from = mf if f.day == 1 else mf + 1
@@ -514,8 +543,18 @@ class Cockpit:
             notes.append('Anfragen gesamt gibt es erst ab 01.01.2024.')
 
         # ---- FTE und Annual Planning (nur je Team, Teamgruppe, Zeit, gesamt)
-        dim = spec['dest'] or spec['herk'] or spec['region'] or spec['hotel'] or spec['sport']
-        if not dim and g in {'none', 'team', 'team_group'} | TIME_GROUPS:
+        dim = spec['dest'] or spec['herk'] or spec['region'] or spec['hotel'] or spec['sport'] or arr
+        if arr:
+            notes.append('Mit Reisezeitraum gibt es kein Annual Planning und keine FTE — beide gelten je Buchungsmonat.')
+
+        def share(m):
+            """Anteil des Monats m im Zeitraum f..t (tagesgenau) — AP zählt angebrochene Monate anteilig."""
+            s = m2d(m)
+            e = (m2d(m + 1) - datetime.timedelta(days=1))
+            ov = (min(e, t) - max(s, f)).days + 1
+            return 0.0 if ov <= 0 else ov / ((e - s).days + 1)
+
+        if not dim and g in {'none', 'team', 'team_group'} | TIME_GROUPS and f <= t:
             mf, mt = midx(f), midx(t)
             per = defaultdict(lambda: defaultdict(float))
             for r in D['fte']:
@@ -537,7 +576,7 @@ class Cockpit:
                     continue
                 key = (team if g == 'team' else self._group_of(team) if g == 'team_group'
                        else bucket_of(kd(m2d(r[0])), g) if g in TIME_GROUPS else 'Gesamt')
-                out[key]['ap'] = (out[key]['ap'] or 0) + r[2]
+                out[key]['ap'] = (out[key]['ap'] or 0) + r[2] * share(r[0])
             for r in D.get('apLeads') or []:
                 if r[0] < mf or r[0] > mt:
                     continue
@@ -546,9 +585,9 @@ class Cockpit:
                     continue
                 key = (team if g == 'team' else self._group_of(team) if g == 'team_group'
                        else bucket_of(kd(m2d(r[0])), g) if g in TIME_GROUPS else 'Gesamt')
-                out[key]['apl'] = (out[key]['apl'] or 0) + r[2]
+                out[key]['apl'] = (out[key]['apl'] or 0) + r[2] * share(r[0])
             if f.day != 1 or (t + datetime.timedelta(days=1)).day != 1:
-                notes.append('FTE und Plan werden für jeden berührten Monat voll gezählt.')
+                notes.append('Plan (AP) zählt angebrochene Monate tagesanteilig; FTE ist der Mittelwert der berührten Monate.')
         return out
 
     def _val(self, m, b, spec, g):

@@ -82,6 +82,14 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
 .chip.sm{font-size:12px;padding:4px 9px}
 .spacer{flex:1 1 auto}
 .controls .brk{flex-basis:100%;height:0}
+/* Zeitraum-Gruppen: dezenter Rahmen mit Titel in der Linie */
+.fgroup{position:relative;display:flex;gap:var(--s-4);align-items:flex-end;flex-wrap:wrap;
+  border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s-4) var(--s-3) var(--s-3);margin-top:6px}
+.fgroup>.fgroup-t{position:absolute;top:-8px;left:10px;padding:0 6px;background:var(--bg-alt);
+  font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-strong)}
+.fgroup.arr{border-style:dashed}
+.fgroup.arr.on{border-style:solid;border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.fgroup.arr.on>.fgroup-t{color:var(--brand)}
 .controls .inner{row-gap:calc(var(--s-5) / 2)}
 
 /* ---------- Bausteine ---------- */
@@ -378,17 +386,20 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
 
 <div class="controls">
   <div class="inner">
-    <div class="field">
-      <label for="from" data-i18n="ctl.from"></label>
-      <input type="date" id="from">
-    </div>
-    <div class="field">
-      <label for="to" data-i18n="ctl.to"></label>
-      <input type="date" id="to">
-    </div>
-    <div class="field">
-      <label data-i18n="ctl.presets"></label>
-      <div class="presets" id="presets"></div>
+    <div class="fgroup" id="grpBook" role="group" aria-labelledby="grpBookT">
+      <span class="fgroup-t" id="grpBookT" data-i18n="ctl.bookPeriod"></span>
+      <div class="field">
+        <label for="from" data-i18n="ctl.from"></label>
+        <input type="date" id="from">
+      </div>
+      <div class="field">
+        <label for="to" data-i18n="ctl.to"></label>
+        <input type="date" id="to">
+      </div>
+      <div class="field">
+        <label data-i18n="ctl.presets"></label>
+        <div class="presets" id="presets"></div>
+      </div>
     </div>
     <div class="field">
       <label for="grp" data-i18n="ctl.area"></label>
@@ -397,6 +408,22 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
     <div class="field">
       <label for="team" data-i18n="ctl.team"></label>
       <select id="team"></select>
+    </div>
+    <div class="brk"></div>
+    <div class="fgroup arr" id="grpArr" role="group" aria-labelledby="grpArrT">
+      <span class="fgroup-t" id="grpArrT" data-i18n="ctl.arrPeriod"></span>
+      <div class="field">
+        <label for="arrFrom" data-i18n="ctl.from"></label>
+        <input type="date" id="arrFrom">
+      </div>
+      <div class="field">
+        <label for="arrTo" data-i18n="ctl.to"></label>
+        <input type="date" id="arrTo">
+      </div>
+      <div class="field">
+        <label data-i18n="ctl.presets"></label>
+        <div class="presets" id="arrPresets"></div>
+      </div>
     </div>
     <div class="brk"></div>
     <div class="field">
@@ -773,8 +800,9 @@ M.forEach(m=>{ m.n=m.k; m.g=m.gk; });
 function emptyBase(){return {book:0,teams:0,pax:0,nights:0,paxn:0,vk:0,ek:0,db:0,
                              leads:0,props:0,web:0,leadsAll:0,bqNA:false,fte:0,apTeams:0,apLeads:0,hasApLeads:false,leadPartial:false};}
 
-function aggregate(from,to,teamSet){
+function aggregate(from,to,teamSet,py){
   const b = emptyBase();
+  to = capTo(to, py); setArr(py);
   for(const r of D.bookings){
     if(r[0]<from || r[0]>to) continue;
     const tm = D.teams[r[1]];
@@ -785,7 +813,7 @@ function aggregate(from,to,teamSet){
   }
   /* Leads: tagesgenau ab 2024, davor monatlich aus der Mappe */
   b.leadNA = !leadDimOK();
-  b.dimFiltered = dimActive();
+  b.dimFiltered = dimActive() || arrActive();
   if(!b.leadNA){
     for(const r of D.leadDaily){
       if(r[0]<from || r[0]>to) continue;
@@ -801,7 +829,7 @@ function aggregate(from,to,teamSet){
   const lastOfMonth = new Date(Date.UTC(toD.getUTCFullYear(), toD.getUTCMonth()+1, 0)).getUTCDate();
   const fullTo = toD.getUTCDate()===lastOfMonth ? mTo : mTo-1;
   let histMonths=0, partial=false;
-  if(b.leadNA || dimActive()){
+  if(b.leadNA || dimActive() || arrActive()){
     b.leadHistSkipped = mFrom < (D.meta.leadCutMonth ?? 60);
     b.leadPartial=false; b.leadHistUsed=false;
   } else {
@@ -831,18 +859,19 @@ function aggregate(from,to,teamSet){
   }
   for(const v of perMonth.values()){ fteSum+=v; fteN++; }
   b.fte = fteN ? fteSum/fteN : 0;
-  /* Annual Planning: Summe der berührten Monate */
+  /* Annual Planning: berührte Monate tagesanteilig, höchstens bis heute */
   for(const r of D.ap){
     if(r[0]<mFrom || r[0]>mTo) continue;
     if(!teamSet.has(D.teams[r[1]])) continue;
-    b.apTeams += r[2];
+    b.apTeams += r[2]*monthShare(r[0],from,to);
   }
   /* AP-Anfragen: geplante Teams des Folgemonats / Buchungsquote Vorjahr (ETL) */
   for(const r of (D.apLeads||[])){
     if(r[0]<mFrom || r[0]>mTo) continue;
     if(!teamSet.has(D.teams[r[1]])) continue;
-    b.apLeads += r[2]; b.hasApLeads = true;
+    b.apLeads += r[2]*monthShare(r[0],from,to); b.hasApLeads = true;
   }
+  ARRWIN = null;
   return b;
 }
 
@@ -896,7 +925,8 @@ function deltaHTML(cur,ref){
 /* ============================ Zustand ============================ */
 const state = {
   from: null, to: null, group:'all', team:'', vj:true, ap:true,
-  trend:'db', teamMetric:'db', sort:{col:'db',dir:-1}, preset:'12m',
+  trend:'db', teamMetric:'db', sort:{col:'db',dir:-1}, preset:'1m',
+  arrFrom:null, arrTo:null, arrPreset:null,      // Reisezeitraum (Anreise), null = alle Anreisen
   hotel:null, hotelMetric:'book', topMetric:'db', topSort:null,
   dest:'', herk:'', region:'',
   mapMode:'dest', mapMetric:'db'
@@ -906,13 +936,36 @@ const state = {
    weil Combit kein Bundesland fuehrt. */
 function dimActive(){ return !!(state.dest || state.herk || state.region); }
 function leadDimOK(){ return !state.region; }
+/* Reisezeitraum: zusätzlicher Filter auf das Anreisedatum (Sales Spalte B,
+   C_AP Startdatum). ARRWIN ist das Fenster der laufenden Berechnung —
+   beim Vorjahr um ein Jahr verschoben. */
+function arrActive(){ return !!(state.arrFrom && state.arrTo); }
+let ARRWIN = null;
+function setArr(py){
+  ARRWIN = arrActive() ? [d2i(py ? shiftYear(state.arrFrom,1) : state.arrFrom),
+                          d2i(py ? shiftYear(state.arrTo,1)   : state.arrTo)] : null;
+}
+const arrOK = a => !ARRWIN || (a!==undefined && a>=ARRWIN[0] && a<=ARRWIN[1]);
+/* Buchungs- und Erfassungszeitraum enden spätestens heute (Vorjahr: heute
+   vor einem Jahr) — sonst stünde ein Vorjahr mit ganzen Monaten gegen ein
+   Ist, das es für die Zukunft noch nicht gibt. */
+const capTo = (to, py) => Math.min(to, d2i(py ? shiftYear(today(),1) : today()));
+/* Anteil eines Monats, der im Zeitraum liegt (tagesgenau) — für AP */
+function monthShare(m, from, to){
+  const y=2019+Math.floor(m/12), mo=m%12;
+  const s=Math.round((Date.UTC(y,mo,1)-DAY0)/864e5), e=Math.round((Date.UTC(y,mo+1,0)-DAY0)/864e5);
+  const ov=Math.min(e,to)-Math.max(s,from)+1;
+  return ov<=0 ? 0 : ov/(e-s+1);
+}
 function bookOK(r){
+  if(!arrOK(r[13])) return false;
   if(state.dest   && D.dests[r[12]] !== state.dest) return false;
   if(state.herk   && D.regs[r[3]]   !== state.herk) return false;
   if(state.region && String(r[11])  !== state.region) return false;
   return true;
 }
 function leadOK(r){
+  if(!arrOK(r[8])) return false;
   if(state.dest && D.dests[r[3]] !== state.dest) return false;
   if(state.herk && D.regs[r[2]]  !== state.herk) return false;
   return true;
@@ -927,12 +980,28 @@ function shiftYear(d,n){ return new Date(d.getFullYear()-n, d.getMonth(), d.getD
 /* ============================ Aufbau UI ============================ */
 function initControls(){
   const box = document.getElementById('presets');
-  box.innerHTML = ['1m','3m','12m','gj','kj']
+  box.innerHTML = PRESETS
     .map(id=>`<button class="chip sm" data-p="${id}" data-i18n="p.${id}"></button>`).join('');
   box.addEventListener('click',e=>{
     const b=e.target.closest('[data-p]'); if(!b) return;
     applyPreset(b.dataset.p); render();
   });
+  /* Reisezeitraum: dieselben Schnellfilter, dazu „Alle Anreisen“ */
+  const abox = document.getElementById('arrPresets');
+  abox.innerHTML = `<button class="chip sm" data-p="none" data-i18n="ctl.arrAll"></button>`+
+    PRESETS.map(id=>`<button class="chip sm" data-p="${id}" data-i18n="p.${id}"></button>`).join('');
+  abox.addEventListener('click',e=>{
+    const b=e.target.closest('[data-p]'); if(!b) return;
+    applyArrPreset(b.dataset.p); render();
+  });
+  const af=document.getElementById('arrFrom'), at=document.getElementById('arrTo');
+  const arrInput = () => {
+    const a=fromIso(af.value), z=fromIso(at.value);
+    if(!af.value && !at.value){ applyArrPreset('none'); render(); return; }
+    if(!a || !z) return;                 // erst rechnen, wenn beide Daten stehen
+    state.arrFrom = a<=z ? a : z; state.arrTo = a<=z ? z : a; state.arrPreset=null; render();
+  };
+  af.onchange = arrInput; at.onchange = arrInput;
 
   const g=document.getElementById('grp');
   g.innerHTML = GROUPS.map(x=>`<option value="${x.id}">${t(x.k)}</option>`).join('');
@@ -1029,23 +1098,37 @@ function fillTeams(){
   if(state.team && !list.includes(state.team)) state.team='';
   el.value=state.team;
 }
+/* Schnellauswahl, immer ab heute gerechnet.
+   Buchungs-/Erfassungszeitraum endet heute (Zukunft hat noch keine Buchungen).
+   Reisezeitraum reicht bei Monat, Geschäfts- und Kalenderjahr bis zu deren Ende,
+   weil künftige Anreisen dort gerade interessant sind. */
+const PRESETS = ['1m','pcn','3m','12m','gj','kj'];
+function presetRange(p, arr){
+  const end=today(), y=end.getFullYear(), m=end.getMonth();
+  /* 3 und 12 Monate taggenau rückwärts: am 02.10.2026 = 03.10.2025–02.10.2026 */
+  const back = n => { const mm=m-n, d=end.getDate();
+    const last=new Date(y, mm+1, 0).getDate();         // 31. in kürzeren Monaten abfangen
+    return new Date(y, mm, Math.min(d,last)+1); };
+  const fy = m>=6 ? y : y-1;
+  switch(p){
+    case '1m':  return [new Date(y,m,1),   arr ? new Date(y,m+1,0) : end];
+    case 'pcn': return [new Date(y,m-1,1), new Date(y,m+2,0)];   // Vor-, laufender und Folgemonat
+    case '3m':  return [back(3),  end];
+    case '12m': return [back(12), end];
+    case 'gj':  return [new Date(fy,6,1),  arr ? new Date(fy+1,5,30) : end];
+    case 'kj':  return [new Date(y,0,1),   arr ? new Date(y,11,31)   : end];
+  }
+  return [localDay(FIRST), end];
+}
 function applyPreset(p){
   state.preset=p;
-  /* Schnellauswahl ab heute: „Laufender Monat“ am 01.10. = 01.10.–01.10. */
-  const end = today();
-  let start;
-  /* 3 und 12 Monate taggenau rückwärts: am 02.10.2026 = 03.10.2025–02.10.2026 */
-  const back = n => { const y=end.getFullYear(), m=end.getMonth()-n, d=end.getDate();
-    const last=new Date(y, m+1, 0).getDate();          // 31. in kürzeren Monaten abfangen
-    return new Date(y, m, Math.min(d,last)+1); };
-  if(p==='1m') start=new Date(end.getFullYear(),end.getMonth(),1);
-  else if(p==='3m') start=back(3);
-  else if(p==='12m') start=back(12);
-  else if(p==='gj'){ const y=end.getMonth()>=6?end.getFullYear():end.getFullYear()-1; start=new Date(y,6,1); }
-  else if(p==='kj') start=new Date(end.getFullYear(),0,1);
-  else start=localDay(FIRST);
-  state.from=start; state.to=end;
+  [state.from, state.to] = presetRange(p, false);
   document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===p)));
+}
+function applyArrPreset(p){
+  state.arrPreset = p==='none' ? null : p;
+  if(p==='none'){ state.arrFrom=null; state.arrTo=null; }
+  else [state.arrFrom, state.arrTo] = presetRange(p, true);
 }
 
 /* Sprachwechsel: alles neu beschriften und die Auswahllisten neu
@@ -1100,11 +1183,16 @@ function render(){
   document.getElementById('cmpVJ').setAttribute('aria-pressed',String(state.vj));
   document.getElementById('cmpAP').setAttribute('aria-pressed',String(state.ap));
   document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===state.preset)));
+  document.getElementById('arrFrom').value = state.arrFrom ? iso(state.arrFrom) : '';
+  document.getElementById('arrTo').value   = state.arrTo   ? iso(state.arrTo)   : '';
+  document.querySelectorAll('#arrPresets [data-p]').forEach(b=>b.setAttribute('aria-pressed',
+    String(arrActive() ? b.dataset.p===state.arrPreset : b.dataset.p==='none')));
+  document.getElementById('grpArr').classList.toggle('on', arrActive());
 
   TS = teamSet();
   const f=d2i(state.from), to=d2i(state.to);
   CUR = aggregate(f,to,TS);
-  VJ  = aggregate(d2i(shiftYear(state.from,1)), d2i(shiftYear(state.to,1)), TS);
+  VJ  = aggregate(d2i(shiftYear(state.from,1)), d2i(shiftYear(state.to,1)), TS, true);
 
   document.getElementById('mapDest').setAttribute('aria-pressed',String(state.mapMode==='dest'));
   document.getElementById('mapHerk').setAttribute('aria-pressed',String(state.mapMode==='herk'));
@@ -1149,6 +1237,7 @@ function renderFunnel(){
     `${MBY.quote1.n} ${fac(CUR.props,CUR.leads)} · ${MBY.quote2.n} ${q(CUR.book,CUR.leads)} · ${MBY.quote3.n} ${q(CUR.book,CUR.props)}`;
   const n=[];
   if(CUR.leadNA) n.push(t('nt.leadNA'));
+  if(arrActive()) n.push(t('nt.arr',{a:state.arrFrom.toLocaleDateString(LOC),b:state.arrTo.toLocaleDateString(LOC)}));
   if(CUR.leadHistSkipped) n.push(t('nt.leadHistSkipped'));
   if(CUR.leadHistUsed) n.push(t('nt.leadHistUsed'));
   if(CUR.leadPartial) n.push(t('nt.leadPartial'));
@@ -1189,14 +1278,14 @@ function renderPanels(){
 }
 
 /* --- Verlauf --- */
-function monthlySeries(id, fromD, toD){
+function monthlySeries(id, fromD, toD, py){
   const out=[];
   let m0=mIdxLocal(new Date(fromD.getFullYear(),fromD.getMonth(),1));
   let m1=mIdxLocal(new Date(toD.getFullYear(),toD.getMonth(),1));
   for(let m=m0;m<=m1;m++){
     const s=mStart(m), e=new Date(Date.UTC(2019+Math.floor(m/12),(m%12)+1,0));
     const a=aggregate(d2i(new Date(s.getUTCFullYear(),s.getUTCMonth(),1)),
-                      d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())), TS);
+                      d2i(new Date(e.getUTCFullYear(),e.getUTCMonth(),e.getUTCDate())), TS, py);
     out.push({m, v: metricVal(id,a), ap: apVal(id,a)});
   }
   return out;
@@ -1205,7 +1294,7 @@ function renderTrend(){
   if(!TS) return;
   const id=state.trend;
   const cur=monthlySeries(id, state.from, state.to);
-  const vj = state.vj ? monthlySeries(id, shiftYear(state.from,1), shiftYear(state.to,1)) : null;
+  const vj = state.vj ? monthlySeries(id, shiftYear(state.from,1), shiftYear(state.to,1), true) : null;
   const W=1100,H=320,PL=64,PR=16,PT=16,PB=40;
   const n=cur.length;
   const vals=[];
@@ -1261,7 +1350,7 @@ function renderTeams(){
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));
   const rows=[...TS].map(team=>{
     const s=new Set([team]);
-    const c=aggregate(f,to,s), v=aggregate(fv,tv,s);
+    const c=aggregate(f,to,s), v=aggregate(fv,tv,s,true);
     return {team, cur:metricVal(id,c), vj:metricVal(id,v)};
   }).filter(r=>r.cur!==null && r.cur!==0 || (r.vj!==null&&r.vj!==0));
   rows.sort((a,b)=>(b.cur??-1e18)-(a.cur??-1e18));
@@ -1306,7 +1395,7 @@ function renderHeat(){
   const teams=[...TS];
   const cells=teams.map(team=>{
     const s=new Set([team]);
-    const c=aggregate(f,to,s), v=aggregate(fv,tv,s);
+    const c=aggregate(f,to,s), v=aggregate(fv,tv,s,true);
     return {team, vals:HEAT.map(id=>{
       const a=metricVal(id,c), b=metricVal(id,v);
       if(a===null||b===null||b===0||!isFinite(a)||!isFinite(b)) return {p:null,a,b};
@@ -1333,7 +1422,7 @@ function renderTable(){
   TABLE=[...TS].map(team=>{
     const s=new Set([team]);
     const c=aggregate(f,to,s);
-    const v=aggregate(fv,tv,s);
+    const v=aggregate(fv,tv,s,true);
     const row={team};
     cols.forEach(id=>{ row[id]=metricVal(id,c); row[id+'__vj']=metricVal(id,v); });
     return row;
@@ -1366,7 +1455,7 @@ function copyTable(){
 
 /* --- Definitionen --- */
 function renderDefs(){
-  const keys=['stichtag','db','teams','leads','leadsall','props','web','bq','fte','ap','py','gj','mpn',
+  const keys=['stichtag','reise','db','teams','leads','leadsall','props','web','bq','fte','ap','py','gj','mpn',
               'maps','dest','herk','region','hotel','hotelview','rank'];
   document.getElementById('defs').innerHTML =
     keys.map(k=>`<dt>${t('def.'+k+'.t')}</dt><dd>${t('def.'+k+'.d')}</dd>`).join('');
@@ -1380,12 +1469,14 @@ const MAP_M = ['book','teams','vk','db','ros','leads','props','pax','nights',
                'uteam','dbteam','mpn','quote2'];
 
 function bookOKExcept(r, skip){
+  if(!arrOK(r[13])) return false;
   if(skip!=='dest'   && state.dest   && D.dests[r[12]] !== state.dest) return false;
   if(skip!=='herk'   && state.herk   && D.regs[r[3]]   !== state.herk) return false;
   if(skip!=='region' && state.region && String(r[11])  !== state.region) return false;
   return true;
 }
 function leadOKExcept(r, skip){
+  if(!arrOK(r[8])) return false;
   if(skip!=='dest' && state.dest && D.dests[r[3]] !== state.dest) return false;
   if(skip!=='herk' && state.herk && D.regs[r[2]]  !== state.herk) return false;
   return true;
@@ -1395,7 +1486,8 @@ function leadOKExcept(r, skip){
    eines Durchlaufs je Land. Der Filter auf die Dimension selbst bleibt
    dabei aussen vor, sonst faerbt sich nur noch die eigene Auswahl. */
 function groupBy(kind){
-  const from=d2i(state.from), to=d2i(state.to);
+  const from=d2i(state.from), to=capTo(d2i(state.to), false);
+  setArr(false);
   const out=new Map();
   const get=k=>{ let b=out.get(k); if(!b){ b=emptyBase(); out.set(k,b);} return b; };
   for(const r of D.bookings){
@@ -1577,7 +1669,8 @@ async function askRun(q){
   out.innerHTML=`<p class="busy">${escHTML(t('ask.busy'))}</p>`;
   const ctx = {von: state.from? iso(state.from):null, bis: state.to? iso(state.to):null,
                bereich: state.group, team: state.team||null, reiseland: state.dest||null,
-               herkunft: state.herk||null, region: state.region||null};
+               herkunft: state.herk||null, region: state.region||null,
+               reise_von: state.arrFrom? iso(state.arrFrom):null, reise_bis: state.arrTo? iso(state.arrTo):null};
   try{
     const r = await fetch('api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
                                      body:JSON.stringify({question:q, lang:LANG, context:ctx})});
@@ -1626,10 +1719,12 @@ const hotelActive = new Set([...HBOOK.keys(), ...HLEAD.keys()]);
 /* Filter für Hotelblick und Rangliste: Bereich, Team und Länderfilter */
 function hotelFilter(){ return (state.team || state.group!=='all' || dimActive()) ? TS : null; }
 
-function aggHotel(from,to,hi,teamFilter){
+function aggHotel(from,to,hi,teamFilter,py){
   const b = emptyBase();
+  to = capTo(to, py); setArr(py);
   for(const r of (HBOOK.get(hi)||[])){
     if(r[0]<from || r[0]>to) continue;
+    if(!arrOK(r[13])) continue;
     if(teamFilter && !teamFilter.has(D.teams[r[1]])) continue;
     if(teamFilter && !bookOK(r)) continue;
     b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
@@ -1643,11 +1738,13 @@ function aggHotel(from,to,hi,teamFilter){
   if(leadsOK){
     for(const r of (HLEAD.get(hi)||[])){
       if(r[0]<from || r[0]>to) continue;
+      if(!arrOK(r[7])) continue;
       if(!allTeams && !(r[2]>=0 && teamFilter.has(D.teams[r[2]]))) continue;
       b.leads+=r[3]; b.web+=r[4]; b.props+=r[5]; b.leadsAll+=(r[6]||0);
     }
   } else b.leadNA = true;
   b.bqNA = from < LEAD_CUT_D;
+  ARRWIN = null;
   return b;
 }
 
@@ -1725,7 +1822,7 @@ function renderHotelDetail(){
   const f=d2i(state.from), to=d2i(state.to);
   const hf=hotelFilter();
   const cur=aggHotel(f,to,state.hotel,hf);
-  const vj =aggHotel(d2i(shiftYear(state.from,1)),d2i(shiftYear(state.to,1)),state.hotel,hf);
+  const vj =aggHotel(d2i(shiftYear(state.from,1)),d2i(shiftYear(state.to,1)),state.hotel,hf,true);
 
   const meta=[];
   if(h[2]) meta.push(cname(h[2]));
@@ -1827,7 +1924,7 @@ function renderTopHotels(){
     if(!a.book && !a.leads && !a.props) continue;
     const row={hi, name:D.hotels[hi][1], land:D.hotels[hi][2], id:D.hotels[hi][0]};
     cols.forEach(c=>row[c]=metricVal(c,a));
-    if(cols.includes('quote2') && state.vj) row.quote2__vj = metricVal('quote2', aggHotel(fv,tv,hi,teamFilter));
+    if(cols.includes('quote2') && state.vj) row.quote2__vj = metricVal('quote2', aggHotel(fv,tv,hi,teamFilter,true));
     rows.push(row);
   }
   rows.forEach(r=>{ r.landName = r.land ? cname(r.land) : ''; });
@@ -1906,7 +2003,7 @@ initReports();
 initAsk();
 document.querySelectorAll('#viewSw [data-v]').forEach(b=>b.onclick=()=>setView(b.dataset.v));
 applyLabels();
-applyPreset('12m');
+applyPreset('1m');
 render();
 syncCtrlHeight();
 { let v='cockpit'; try{ v=localStorage.getItem('socca.view')||'cockpit'; }catch(e){}

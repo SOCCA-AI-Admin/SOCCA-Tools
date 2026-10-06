@@ -697,10 +697,23 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   Bundesland.
 - **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
   mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
-- Die **Schnellauswahl** rechnet ab heute: *Laufender Monat* am 01.10. ist
-  der 01.10.–01.10., *3 Monate* und *12 Monate* zählen taggenau zurück (am
-  02.10.2026: 03.07.–02.10. bzw. 03.10.2025–02.10.2026), *Geschäftsjahr* ist
-  der 01.07. bis heute. Beim Start sind *12 Monate* gewählt.
+- **Buchungs- / Erfassungszeitraum** (oben, durchgehender Rahmen): Buchungen
+  nach Buchungsdatum (Sales Spalte C), Anfragen nach Anfragedatum, Angebote
+  nach Versanddatum (C_AP). Er endet höchstens heute.
+- **Reisezeitraum (Anreise)** (gestrichelter Rahmen, aktiv farbig): optionaler
+  zweiter Filter auf die Anreise — Sales Spalte B, C_AP Startdatum. Ohne
+  Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
+  Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist.
+  Annual Planning und FTE werden dann ausgeblendet (sie gelten je
+  Buchungsmonat), Anfragen vor 2024 haben kein Anreisedatum.
+- Die **Schnellauswahl** rechnet ab heute: *Laufender Monat* (Standard beim
+  Start), *Vor- bis Folgemonat* (z. B. 01.09.–30.11.), *3 Monate* und
+  *12 Monate* taggenau zurück (am 02.10.2026: 03.07.–02.10. bzw.
+  03.10.2025–02.10.2026), *Geschäftsjahr*, *Kalenderjahr*. Beim Reisezeitraum
+  reichen Monat, Geschäfts- und Kalenderjahr bis zu ihrem Ende.
+- **Annual Planning** zählt angebrochene Monate tagesanteilig und höchstens
+  bis heute (Teams und AP-Anfragen). Das Vorjahr endet entsprechend heute vor
+  einem Jahr.
 - Im **Team und Country Status Report** zeigen die Detailtabellen
   (Reiseländer, Sportarten, Teams, Kundenherkunft, Hotels) standardmäßig den
   Berichtsmonat; *Zeitraum der Tabellen* schaltet

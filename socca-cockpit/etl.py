@@ -259,8 +259,10 @@ def read_workbook(path):
         if bd is None or not (2015 < bd.year < 2040):
             continue
         hotel = num(d.get(SALES_COL['Hotel']))
+        arr = as_date(d.get(SALES_COL['Arrival']))
         bookings.append(dict(
             d=dayidx(bd),
+            arr=dayidx(arr) if arr and 2000 < arr.year < 2100 else -1,
             team=text(d.get(SALES_COL['Team'])),
             sport=text(d.get(SALES_COL['Sport'])),
             reg=norm_country(text(d.get(SALES_COL['Reg']))),
@@ -435,50 +437,54 @@ def read_combit(path):
         a = as_date(row.get('Anfragedatum'))
         if a is None:
             continue
+        st = as_date(row.get('Startdatum'))           # Anreise der Gruppe
+        st = dayidx(st) if st and 2000 < st.year < 2100 else -1
         wid = numlike(row.get('WebID'))
         wid = int(wid) if wid and 9000 < wid < 100000 else None
         web = (str(row.get('Quelle') or '').strip().lower() == 'website'
                or str(row.get('ErfassungsBenutzer') or '').strip() == 'Webformular_Import')
         art = (text(row.get('Belegart')) or '')
         if art == 'Anfrage':
-            alle.append((a, team, wid, herk, ziel))
+            alle.append((a, team, wid, herk, ziel, st))
             key = (str(row.get('AnsprechpartnerMail') or '').strip().lower(),
                    team, str(row.get('AP') or '').strip())
             prev = anfragen.get(key)
             if prev is None or a < prev[0]:
-                anfragen[key] = (a, team, web, wid, herk, ziel)
+                anfragen[key] = (a, team, web, wid, herk, ziel, st)
             if wid:
                 hk = key + (wid,)
                 hp = hotel_anfragen.get(hk)
                 if hp is None or a < hp[0]:
-                    hotel_anfragen[hk] = (a, web)
+                    hotel_anfragen[hk] = (a, web, st)
         elif art == 'Angebot':
             o = as_date(row.get('AngebotVersandtDatum'))
             if o is None or o.year < 2010:
                 o = a
-            angebote.append((o, team, wid, herk, ziel))
+            angebote.append((o, team, wid, herk, ziel, st))
 
-    # (Tag, Team, Herkunft, Reiseland) -> leads, web, offers, alle Anfragen
+    # Schlüssel tragen zusätzlich den Anreisetag (Startdatum, -1 = unbekannt),
+    # damit das Cockpit nach Reisezeitraum filtern kann.
+    # (Erfassungstag, Team, Herkunft, Reiseland, Anreisetag) -> leads, web, offers, alle Anfragen
     by_team = defaultdict(lambda: [0, 0, 0, 0])
-    by_hotel = defaultdict(lambda: [0, 0, 0, 0])    # (Tag, Hotel, Team) -> leads, web, offers, alle
-    for a, team, web, wid, herk, ziel in anfragen.values():
+    by_hotel = defaultdict(lambda: [0, 0, 0, 0])    # (Tag, Hotel, Team, Anreisetag) -> leads, web, offers, alle
+    for a, team, web, wid, herk, ziel, st in anfragen.values():
         if team:
-            r = by_team[(dayidx(a), team, herk, ziel)]
+            r = by_team[(dayidx(a), team, herk, ziel, st)]
             r[0] += 1
             r[1] += 1 if web else 0
-    for (_, team, _, wid), (a, web) in hotel_anfragen.items():
-        r = by_hotel[(dayidx(a), wid, team)]; r[0] += 1; r[1] += 1 if web else 0
-    for o, team, wid, herk, ziel in angebote:
+    for (_, team, _, wid), (a, web, st) in hotel_anfragen.items():
+        r = by_hotel[(dayidx(a), wid, team, st)]; r[0] += 1; r[1] += 1 if web else 0
+    for o, team, wid, herk, ziel, st in angebote:
         if team:
-            by_team[(dayidx(o), team, herk, ziel)][2] += 1
+            by_team[(dayidx(o), team, herk, ziel, st)][2] += 1
         if wid:
-            by_hotel[(dayidx(o), wid, team)][2] += 1
+            by_hotel[(dayidx(o), wid, team, st)][2] += 1
     # Alle Anfragen (ohne Unique-Regel) für die Buchungsquote je Team und Hotel
-    for a, team, wid, herk, ziel in alle:
+    for a, team, wid, herk, ziel, st in alle:
         if team:
-            by_team[(dayidx(a), team, herk, ziel)][3] += 1
+            by_team[(dayidx(a), team, herk, ziel, st)][3] += 1
         if wid:
-            by_hotel[(dayidx(a), wid, team)][3] += 1
+            by_hotel[(dayidx(a), wid, team, st)][3] += 1
     return by_team, by_hotel
 
 
@@ -537,7 +543,7 @@ def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
         if b['team']:
             teams_m[(b['team'], monthidx(DAY0 + datetime.timedelta(days=b['d'])))] += b['teams'] or 0
     leads_m = defaultdict(float)                     # (Team, Monat) -> unique Anfragen
-    for (d, team, _h, _z), v in by_team.items():
+    for (d, team, _h, _z, _st), v in by_team.items():
         day = DAY0 + datetime.timedelta(days=d)
         if excel_compat:
             nxt = day + datetime.timedelta(days=1)
@@ -577,7 +583,7 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
 
     # Hotels: Stammliste plus alles, was in Buchungen oder Combit auftaucht
     master = wbd['hotels']
-    seen = {b['hotel'] for b in wbd['bookings'] if b['hotel']} | {h for (_, h, _) in by_hotel}
+    seen = {b['hotel'] for b in wbd['bookings'] if b['hotel']} | {k[1] for k in by_hotel}
     fallback = {}
     for b in wbd['bookings']:
         if b['hotel'] and b['hotel'] not in master and b['name']:
@@ -624,14 +630,15 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
                  rix.get(b['reg'], -1), hix.get(b['hotel'], -1),
                  r2(b['vk']), r2(b['ek']), r2(b['marg']),
                  r2(b['teams'], 2), r2(b['pax'], 0), r2(b['nights'], 0),
-                 gix.get((b['reg'], b['region']), -1), dix.get(b['land'], -1)]
+                 gix.get((b['reg'], b['region']), -1), dix.get(b['land'], -1), b['arr']]
                 for b in wbd['bookings']]
 
-    lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v]
-                        for (d, t, h, z), v in by_team.items() if t in tix])
-    # leadDaily: [Tag, Team, Herkunft, Reiseland, Anfragen unique, Web, Angebote, alle Anfragen]
-    # leadHotel: [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote, alle Anfragen]
-    lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v] for (d, h, t), v in by_hotel.items() if h in hix])
+    lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v, st]
+                        for (d, t, h, z, st), v in by_team.items() if t in tix])
+    # bookings:  [..., 13 = Anreisetag (Spalte B), -1 = unbekannt]
+    # leadDaily: [Tag, Team, Herkunft, Reiseland, Anfragen unique, Web, Angebote, alle Anfragen, Anreisetag]
+    # leadHotel: [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote, alle Anfragen, Anreisetag]
+    lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v, st] for (d, h, t, st), v in by_hotel.items() if h in hix])
 
     def mrows(series, cut=None):
         out = []
