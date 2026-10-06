@@ -57,15 +57,6 @@ add('nt.arr', 'Reisezeitraum aktiv: Es zählen nur Buchungen, Anfragen und Angeb
     'Reiseperiode aktiv: bare bestillinger, forespørsler og tilbud med ankomst fra {a} til {b} telles. Annual Planning og FTE er skjult fordi de gjelder per bestillingsmåned; forespørsler før 2024 har ingen ankomstdato og mangler.',
     'Seyahat dönemi etkin: yalnızca {a} – {b} arasında varışı olan rezervasyon, talep ve teklifler sayılır. Annual Planning ve FTE rezervasyon ayına göre geçerli olduğu için gizlenir; 2024 öncesi taleplerin varış tarihi yoktur ve eksiktir.',
     'Utazási időszak aktív: csak a(z) {a} – {b} közötti érkezésű foglalások, érdeklődések és ajánlatok számítanak. Az Annual Planning és az FTE rejtve van, mert foglalási hónapra vonatkozik; a 2024 előtti érdeklődéseknek nincs érkezési dátuma, ezért hiányoznak.')
-add('p.pcn', 'Vor- bis Folgemonat',
-    'Vorige t/m volgende maand',
-    'Mes anterior a siguiente',
-    'Mese prec. – succ.',
-    'Prošli – sljedeći mj.',
-    'Minulý až příští měsíc',
-    'Forrige til neste måned',
-    'Önceki – sonraki ay',
-    'Előző–következő hónap')
 add('ctl.arrAll', 'Alle Anreisen',
     'Alle aankomsten',
     'Todas las llegadas',
@@ -766,6 +757,7 @@ add('ask.ph', 'z. B. Welche Hotels in Kroatien hatten im GJ 2025/26 die meisten 
     'f.eks. Hvilke hoteller i Kroatia hadde flest forespørsler i regnskapsåret 2025/26?',
     'örn. 2025/26 mali yılında Hırvatistan’da en çok talep alan oteller hangileri?',
     'pl. Mely horvátországi szállodák kapták a legtöbb érdeklődést a 2025/26-os üzleti évben?')
+add('ask.close', 'Schließen', 'Sluiten', 'Cerrar', 'Chiudi', 'Zatvori', 'Zavřít', 'Lukk', 'Kapat', 'Bezárás')
 add('ask.btn', 'Fragen', 'Vragen', 'Preguntar', 'Chiedi', 'Pitaj', 'Zeptat se', 'Spør', 'Sor', 'Kérdezés')
 add('ask.busy', 'Claude rechnet …', 'Claude rekent …', 'Claude está calculando…', 'Claude sta calcolando…',
     'Claude računa …', 'Claude počítá …', 'Claude regner …', 'Claude hesaplıyor…', 'Claude számol …')
@@ -905,15 +897,15 @@ DEFS = [
      ('Reisezeitraum (Anreise)', 'Reisperiode (aankomst)', 'Periodo de viaje (llegada)', 'Periodo di viaggio (arrivo)',
       'Razdoblje putovanja (dolazak)', 'Období cesty (příjezd)', 'Reiseperiode (ankomst)', 'Seyahat dönemi (varış)',
       'Utazási időszak (érkezés)'),
-     ('Zusätzlicher Filter auf das Anreisedatum der Gruppe: Spalte B im Blatt Sales, in C_AP die Spalte Startdatum. Ohne Auswahl zählen alle Anreisen. Ist er gesetzt, zählt nur, was im Buchungs-/Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist. Der Vorjahresvergleich verschiebt beide Zeiträume um ein Jahr. Monat, Geschäfts- und Kalenderjahr reichen hier bis zu ihrem Ende.',
-      'Extra filter op de aankomstdatum van de groep: kolom B in het blad Sales, in C_AP de kolom Startdatum. Zonder keuze tellen alle aankomsten. Is hij gezet, dan telt alleen wat in de boekings-/registratieperiode is geboekt of geregistreerd ÉN in de reisperiode aankomt. De vergelijking met vorig jaar verschuift beide periodes een jaar. Maand, boek- en kalenderjaar lopen hier tot hun einde.',
-      'Filtro adicional por la fecha de llegada del grupo: columna B de la hoja Sales; en C_AP, la columna Startdatum. Sin selección cuentan todas las llegadas. Si se fija, solo cuenta lo reservado o registrado en el periodo de reserva/registro Y con llegada en el periodo de viaje. La comparación con el año anterior desplaza ambos periodos un año. Mes, ejercicio y año natural llegan aquí hasta su final.',
-      'Filtro aggiuntivo sulla data di arrivo del gruppo: colonna B del foglio Sales, in C_AP la colonna Startdatum. Senza selezione contano tutti gli arrivi. Se impostato, conta solo ciò che è stato prenotato o registrato nel periodo di prenotazione/registrazione E arriva nel periodo di viaggio. Il confronto con l’anno precedente sposta entrambi i periodi di un anno. Mese, esercizio e anno solare arrivano qui fino alla loro fine.',
-      'Dodatni filtar po datumu dolaska grupe: stupac B na listu Sales, u C_AP stupac Startdatum. Bez odabira broje se svi dolasci. Ako je postavljen, broji se samo ono što je rezervirano ili uneseno u razdoblju rezervacije/unosa I dolazi u razdoblju putovanja. Usporedba s prethodnom godinom pomiče oba razdoblja za godinu. Mjesec, poslovna i kalendarska godina ovdje traju do kraja.',
-      'Dodatečný filtr podle data příjezdu skupiny: sloupec B na listu Sales, v C_AP sloupec Startdatum. Bez výběru se počítají všechny příjezdy. Je-li nastaven, počítá se jen to, co bylo rezervováno či zapsáno v období rezervace/zápisu A přijíždí v období cesty. Srovnání s loňskem posouvá obě období o rok. Měsíc, hospodářský a kalendářní rok zde sahají až do konce.',
-      'Ekstra filter på gruppens ankomstdato: kolonne B i arket Sales, i C_AP kolonnen Startdatum. Uten valg teller alle ankomster. Er det satt, teller bare det som ble bestilt eller registrert i bestillings-/registreringsperioden OG ankommer i reiseperioden. Sammenligningen med fjoråret flytter begge perioder ett år. Måned, regnskaps- og kalenderår går her til slutten.',
-      'Grubun varış tarihine ek filtre: Sales sayfasında B sütunu, C_AP’de Startdatum sütunu. Seçim yoksa tüm varışlar sayılır. Ayarlanırsa yalnızca rezervasyon/kayıt döneminde rezerve edilen ya da kaydedilen VE seyahat döneminde varan sayılır. Geçen yıl karşılaştırması her iki dönemi bir yıl kaydırır. Ay, mali ve takvim yılı burada sonuna kadar uzanır.',
-      'További szűrő a csoport érkezési dátumára: a Sales lap B oszlopa, a C_AP-ben a Startdatum oszlop. Kiválasztás nélkül minden érkezés számít. Ha be van állítva, csak az számít, amit a foglalási/rögzítési időszakban foglaltak vagy rögzítettek ÉS az utazási időszakban érkezik. Az előző évi összevetés mindkét időszakot egy évvel eltolja. A hónap, az üzleti és a naptári év itt a végéig tart.')),
+     ('Zusätzlicher Filter auf das Anreisedatum der Gruppe: Spalte B im Blatt Sales, in C_AP die Spalte Startdatum. Ohne Auswahl zählen alle Anreisen. Ist er gesetzt, zählt nur, was im Buchungs-/Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist. Der Vorjahresvergleich verschiebt beide Zeiträume um ein Jahr.',
+      'Extra filter op de aankomstdatum van de groep: kolom B in het blad Sales, in C_AP de kolom Startdatum. Zonder keuze tellen alle aankomsten. Is hij gezet, dan telt alleen wat in de boekings-/registratieperiode is geboekt of geregistreerd ÉN in de reisperiode aankomt. De vergelijking met vorig jaar verschuift beide periodes een jaar.',
+      'Filtro adicional por la fecha de llegada del grupo: columna B de la hoja Sales; en C_AP, la columna Startdatum. Sin selección cuentan todas las llegadas. Si se fija, solo cuenta lo reservado o registrado en el periodo de reserva/registro Y con llegada en el periodo de viaje. La comparación con el año anterior desplaza ambos periodos un año.',
+      'Filtro aggiuntivo sulla data di arrivo del gruppo: colonna B del foglio Sales, in C_AP la colonna Startdatum. Senza selezione contano tutti gli arrivi. Se impostato, conta solo ciò che è stato prenotato o registrato nel periodo di prenotazione/registrazione E arriva nel periodo di viaggio. Il confronto con l’anno precedente sposta entrambi i periodi di un anno.',
+      'Dodatni filtar po datumu dolaska grupe: stupac B na listu Sales, u C_AP stupac Startdatum. Bez odabira broje se svi dolasci. Ako je postavljen, broji se samo ono što je rezervirano ili uneseno u razdoblju rezervacije/unosa I dolazi u razdoblju putovanja. Usporedba s prethodnom godinom pomiče oba razdoblja za godinu.',
+      'Dodatečný filtr podle data příjezdu skupiny: sloupec B na listu Sales, v C_AP sloupec Startdatum. Bez výběru se počítají všechny příjezdy. Je-li nastaven, počítá se jen to, co bylo rezervováno či zapsáno v období rezervace/zápisu A přijíždí v období cesty. Srovnání s loňskem posouvá obě období o rok.',
+      'Ekstra filter på gruppens ankomstdato: kolonne B i arket Sales, i C_AP kolonnen Startdatum. Uten valg teller alle ankomster. Er det satt, teller bare det som ble bestilt eller registrert i bestillings-/registreringsperioden OG ankommer i reiseperioden. Sammenligningen med fjoråret flytter begge perioder ett år.',
+      'Grubun varış tarihine ek filtre: Sales sayfasında B sütunu, C_AP’de Startdatum sütunu. Seçim yoksa tüm varışlar sayılır. Ayarlanırsa yalnızca rezervasyon/kayıt döneminde rezerve edilen ya da kaydedilen VE seyahat döneminde varan sayılır. Geçen yıl karşılaştırması her iki dönemi bir yıl kaydırır.',
+      'További szűrő a csoport érkezési dátumára: a Sales lap B oszlopa, a C_AP-ben a Startdatum oszlop. Kiválasztás nélkül minden érkezés számít. Ha be van állítva, csak az számít, amit a foglalási/rögzítési időszakban foglaltak vagy rögzítettek ÉS az utazási időszakban érkezik. Az előző évi összevetés mindkét időszakot egy évvel eltolja.')),
     ('db',
      ('Deckungsbeitrag', 'Dekkingsbijdrage', 'Margen de contribución', 'Margine di contribuzione',
       'Doprinos pokriću', 'Příspěvek na úhradu', 'Dekningsbidrag', 'Katkı payı', 'Fedezeti összeg'),

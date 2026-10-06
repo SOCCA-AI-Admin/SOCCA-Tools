@@ -162,7 +162,9 @@ svg{display:block;width:100%;height:auto;overflow:visible}
 /* ---------- Karten ---------- */
 .mapgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:var(--s-3);align-items:start}
 .mapgrid.solo{grid-template-columns:1fr}
-@media (max-width:900px){.mapgrid{grid-template-columns:1fr}}
+/* Karten auf 70 % Breite, zentriert */
+.mapgrid{width:70%;margin:0 auto}
+@media (max-width:900px){.mapgrid{grid-template-columns:1fr;width:100%}}
 .maptitle{font-size:13px;letter-spacing:.08em;margin-bottom:var(--s-3);color:var(--fg-strong)}
 path.geo{stroke:var(--surface);stroke-width:1.1;stroke-linejoin:round;cursor:pointer;
   transition:fill var(--dur,160ms) var(--ease)}
@@ -271,6 +273,28 @@ table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,tran
   border-top:1px solid var(--rule);font-size:11.5px;color:var(--fg-muted)}
 #printArea{display:none}
 .ask{display:flex;flex-direction:column;gap:var(--s-3)}
+/* Frag das Cockpit als Schublade von rechts */
+.ask-fab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;
+  align-items:center;gap:8px;padding:14px 9px;border:0;border-radius:var(--r-md) 0 0 var(--r-md);cursor:pointer;
+  background:var(--fg-strong);color:var(--bg);font:inherit;font-size:12px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;box-shadow:-2px 2px 10px rgba(0,0,0,.18);transition:padding var(--ease) 160ms}
+.ask-fab span{writing-mode:vertical-rl;transform:rotate(180deg)}
+.ask-fab:hover{padding-right:13px}
+.ask-drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);z-index:60;overflow-y:auto;
+  background:var(--surface);border-left:1px solid var(--border);box-shadow:-10px 0 30px rgba(0,0,0,.2);
+  padding:var(--s-5);display:flex;flex-direction:column;gap:var(--s-3);
+  transform:translateX(105%);visibility:hidden;transition:transform 280ms var(--ease),visibility 0s linear 280ms}
+body.ask-open .ask-drawer{transform:none;visibility:visible;transition:transform 280ms var(--ease)}
+body.ask-open .ask-fab{opacity:0;pointer-events:none}
+.ask-head{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3);
+  border-bottom:2px solid var(--fg-strong);padding-bottom:var(--s-2)}
+.ask-head h2{margin:0}
+.ask-drawer .hint{margin:0}
+.ask-backdrop{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;
+  transition:opacity 200ms var(--ease)}
+body.ask-open .ask-backdrop{opacity:1;pointer-events:auto}
+body[data-view="reports"] .ask-fab,body[data-view="reports"] .ask-drawer,body[data-view="reports"] .ask-backdrop{display:none}
+@media (prefers-reduced-motion:reduce){.ask-drawer,body.ask-open .ask-drawer,.ask-backdrop{transition:none}}
 .ask-row{display:flex;gap:var(--s-2)}
 .ask-row input{flex:1;min-width:0;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--border);
   border-radius:var(--r-md);background:var(--bg);color:var(--fg-strong)}
@@ -309,7 +333,7 @@ table.rt tbody tr:hover td.neg{background:color-mix(in oklab,var(--neg) 24%,tran
   @page{size:A4 landscape;margin:8mm}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:#fff}
-  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast,#s-ask{display:none !important}
+  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast,#s-ask,#askFab,#askBackdrop{display:none !important}
   body:not(.printing) .wrap > section:not(#s-reports){display:none !important}
   body.printing .wrap{display:none !important}
   body.printing #printArea{display:block}
@@ -401,15 +425,6 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
         <div class="presets" id="presets"></div>
       </div>
     </div>
-    <div class="field">
-      <label for="grp" data-i18n="ctl.area"></label>
-      <select id="grp"></select>
-    </div>
-    <div class="field">
-      <label for="team" data-i18n="ctl.team"></label>
-      <select id="team"></select>
-    </div>
-    <div class="brk"></div>
     <div class="fgroup arr" id="grpArr" role="group" aria-labelledby="grpArrT">
       <span class="fgroup-t" id="grpArrT" data-i18n="ctl.arrPeriod"></span>
       <div class="field">
@@ -420,12 +435,17 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
         <label for="arrTo" data-i18n="ctl.to"></label>
         <input type="date" id="arrTo">
       </div>
-      <div class="field">
-        <label data-i18n="ctl.presets"></label>
-        <div class="presets" id="arrPresets"></div>
-      </div>
+      <button class="chip sm" id="arrClear" type="button" data-i18n="ctl.arrAll" hidden></button>
     </div>
     <div class="brk"></div>
+    <div class="field">
+      <label for="grp" data-i18n="ctl.area"></label>
+      <select id="grp"></select>
+    </div>
+    <div class="field">
+      <label for="team" data-i18n="ctl.team"></label>
+      <select id="team"></select>
+    </div>
     <div class="field">
       <label for="dest" data-i18n="ctl.dest"></label>
       <select id="dest"></select>
@@ -450,26 +470,6 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
 </div>
 
 <div class="wrap">
-
-  <section id="s-ask" hidden>
-    <div class="shead">
-      <h2 id="askTitle" data-i18n="ask.title"></h2>
-      <span class="hint" data-i18n="ask.hint"></span>
-    </div>
-    <div class="card ask">
-      <form id="askForm" class="ask-row" autocomplete="off">
-        <input type="text" id="askQ" maxlength="600" data-i18n-ph="ask.ph" aria-labelledby="askTitle">
-        <button class="chip" id="askBtn" type="submit" data-i18n="ask.btn"></button>
-      </form>
-      <div class="ask-ex" id="askEx">
-        <button type="button" class="chip sm" data-i18n="ask.ex1"></button>
-        <button type="button" class="chip sm" data-i18n="ask.ex2"></button>
-        <button type="button" class="chip sm" data-i18n="ask.ex3"></button>
-      </div>
-      <div class="ask-out" id="askOut" hidden></div>
-      <div class="ask-foot"><span id="askMeta"></span><span data-i18n="ask.note"></span></div>
-    </div>
-  </section>
 
   <section id="s-funnel">
     <div class="shead">
@@ -631,6 +631,34 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
     <div class="tablewrap tall"><table id="dataTable"></table></div>
   </section>
 
+  <!-- Frag das Cockpit: Lasche am rechten Rand, Bereich schiebt sich von rechts herein -->
+  <button id="askFab" class="ask-fab" type="button" hidden aria-controls="s-ask" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linejoin="round" d="M4 5h16v11H9l-5 4z"/><path fill="currentColor" d="M12 7.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/></svg>
+    <span data-i18n="ask.title"></span>
+  </button>
+  <div id="askBackdrop" class="ask-backdrop"></div>
+  <aside id="s-ask" class="ask-drawer" hidden role="dialog" aria-labelledby="askTitle" aria-hidden="true">
+    <div class="ask-head">
+      <h2 id="askTitle" data-i18n="ask.title"></h2>
+      <button id="askClose" class="chip sm" type="button" data-i18n-aria="ask.close">✕</button>
+    </div>
+    <p class="hint" data-i18n="ask.hint"></p>
+    <div class="ask">
+      <form id="askForm" class="ask-row" autocomplete="off">
+        <input type="text" id="askQ" maxlength="600" data-i18n-ph="ask.ph" aria-labelledby="askTitle">
+        <button class="chip" id="askBtn" type="submit" data-i18n="ask.btn"></button>
+      </form>
+      <div class="ask-ex" id="askEx">
+        <button type="button" class="chip sm" data-i18n="ask.ex1"></button>
+        <button type="button" class="chip sm" data-i18n="ask.ex2"></button>
+        <button type="button" class="chip sm" data-i18n="ask.ex3"></button>
+      </div>
+      <div class="ask-out" id="askOut" hidden></div>
+      <div class="ask-foot"><span id="askMeta"></span><span data-i18n="ask.note"></span></div>
+    </div>
+  </aside>
+
   <section id="s-reports">
     <div class="rp-bar">
       <div class="presets" id="rpKind">
@@ -723,6 +751,7 @@ function cname(code){
 function applyLabels(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = t(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>{ el.setAttribute('aria-label', t(el.dataset.i18nAria)); el.title = t(el.dataset.i18nAria); });
   const dark = document.documentElement.getAttribute('data-theme')==='dark';
   document.getElementById('themeBtn').textContent = dark ? t('theme.light') : t('theme.dark');
 }
@@ -986,14 +1015,8 @@ function initControls(){
     const b=e.target.closest('[data-p]'); if(!b) return;
     applyPreset(b.dataset.p); render();
   });
-  /* Reisezeitraum: dieselben Schnellfilter, dazu „Alle Anreisen“ */
-  const abox = document.getElementById('arrPresets');
-  abox.innerHTML = `<button class="chip sm" data-p="none" data-i18n="ctl.arrAll"></button>`+
-    PRESETS.map(id=>`<button class="chip sm" data-p="${id}" data-i18n="p.${id}"></button>`).join('');
-  abox.addEventListener('click',e=>{
-    const b=e.target.closest('[data-p]'); if(!b) return;
-    applyArrPreset(b.dataset.p); render();
-  });
+  /* Reisezeitraum: nur Von/Bis; „Alle Anreisen“ hebt den Filter wieder auf */
+  document.getElementById('arrClear').onclick = () => { applyArrPreset('none'); render(); };
   const af=document.getElementById('arrFrom'), at=document.getElementById('arrTo');
   const arrInput = () => {
     const a=fromIso(af.value), z=fromIso(at.value);
@@ -1102,7 +1125,7 @@ function fillTeams(){
    Buchungs-/Erfassungszeitraum endet heute (Zukunft hat noch keine Buchungen).
    Reisezeitraum reicht bei Monat, Geschäfts- und Kalenderjahr bis zu deren Ende,
    weil künftige Anreisen dort gerade interessant sind. */
-const PRESETS = ['1m','pcn','3m','12m','gj','kj'];
+const PRESETS = ['1m','3m','12m','gj','kj'];
 function presetRange(p, arr){
   const end=today(), y=end.getFullYear(), m=end.getMonth();
   /* 3 und 12 Monate taggenau rückwärts: am 02.10.2026 = 03.10.2025–02.10.2026 */
@@ -1112,7 +1135,6 @@ function presetRange(p, arr){
   const fy = m>=6 ? y : y-1;
   switch(p){
     case '1m':  return [new Date(y,m,1),   arr ? new Date(y,m+1,0) : end];
-    case 'pcn': return [new Date(y,m-1,1), new Date(y,m+2,0)];   // Vor-, laufender und Folgemonat
     case '3m':  return [back(3),  end];
     case '12m': return [back(12), end];
     case 'gj':  return [new Date(fy,6,1),  arr ? new Date(fy+1,5,30) : end];
@@ -1185,8 +1207,7 @@ function render(){
   document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===state.preset)));
   document.getElementById('arrFrom').value = state.arrFrom ? iso(state.arrFrom) : '';
   document.getElementById('arrTo').value   = state.arrTo   ? iso(state.arrTo)   : '';
-  document.querySelectorAll('#arrPresets [data-p]').forEach(b=>b.setAttribute('aria-pressed',
-    String(arrActive() ? b.dataset.p===state.arrPreset : b.dataset.p==='none')));
+  document.getElementById('arrClear').hidden = !arrActive();
   document.getElementById('grpArr').classList.toggle('on', arrActive());
 
   TS = teamSet();
@@ -1687,19 +1708,29 @@ async function askRun(q){
   }finally{ ASK.busy=false; btn.disabled=false; }
 }
 function initAsk(){
-  const sec=document.getElementById('s-ask');
+  const sec=document.getElementById('s-ask'), fab=document.getElementById('askFab');
   if(!sec || location.protocol==='file:') return;
   /* Der Zähler kommt immer vom Server (gemeinsam für alle Kollegen) — beim
      Laden, wenn das Fenster wieder in den Vordergrund kommt, und alle 2 Minuten. */
   const status = () => fetch('api/status?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(s=>{
     if(!s || !s.enabled) return;
-    ASK.limit=s.limit; ASK.remaining=s.remaining; sec.hidden=false;
+    ASK.limit=s.limit; ASK.remaining=s.remaining; sec.hidden=false; fab.hidden=false;
     if(!ASK.busy) askMeta(ASK.lastSec);
   }).catch(()=>{});
   status();
   setInterval(()=>{ if(!document.hidden) status(); }, 120000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) status(); });
   const q=document.getElementById('askQ');
+  /* Schublade öffnen/schließen: Lasche, ✕, Klick daneben oder Esc */
+  const setOpen = on => {
+    document.body.classList.toggle('ask-open', on);
+    sec.setAttribute('aria-hidden', String(!on)); fab.setAttribute('aria-expanded', String(on));
+    if(on) setTimeout(()=>q.focus(), 120); else fab.focus();
+  };
+  fab.onclick = () => setOpen(true);
+  document.getElementById('askClose').onclick = () => setOpen(false);
+  document.getElementById('askBackdrop').onclick = () => setOpen(false);
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && document.body.classList.contains('ask-open')) setOpen(false); });
   document.getElementById('askForm').onsubmit = e => { e.preventDefault(); askRun(q.value); };
   document.querySelectorAll('#askEx button').forEach(b=>b.onclick=()=>{ q.value=b.textContent; askRun(q.value); });
 }

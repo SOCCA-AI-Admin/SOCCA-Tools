@@ -189,7 +189,9 @@ Die Container starten nach einem Neustart des Servers von selbst.
 
 ## Frag das Cockpit (Freitext-Fragen mit Claude)
 
-Oben im Cockpit gibt es ein Fragefeld. Man stellt eine Frage in eigenen
+Am rechten Bildschirmrand sitzt die Lasche *Frag das Cockpit*. Ein Klick
+schiebt das Fragefeld von rechts herein; ✕, Esc oder ein Klick daneben
+schließen es wieder. Man stellt eine Frage in eigenen
 Worten, in jeder der zehn Sprachen, und bekommt eine kurze Antwort mit
 Tabelle. Beispiele: *„Welche drei Hotels in Kroatien hatten im GJ 2025/26 die
 meisten Anfragen?“*, *„Wie steht FUNO gegenüber dem Vorjahr?“*
@@ -248,7 +250,7 @@ keine Kundennamen, keine Mail-Adressen. Unter jeder Antwort zeigt
 
 | Beobachtung | Ursache |
 |---|---|
-| Fragefeld erscheint nicht | `docker compose ps` — läuft *ask*? `docker compose logs ask` sagt, ob ein Schlüssel gefunden wurde. Rechte: `anthropic.env` muss für den Container-Benutzer lesbar sein |
+| Lasche „Frag das Cockpit“ erscheint nicht | `docker compose ps` — läuft *ask*? `docker compose logs ask` sagt, ob ein Schlüssel gefunden wurde. Rechte: `anthropic.env` muss für den Container-Benutzer lesbar sein |
 | „konnte nicht beantwortet werden“ | `tail .state/ask.log` — häufig: Guthaben leer, Schlüssel falsch, Workspace-Limit erreicht, kein Internet (dann `HTTPS_PROXY` in `docker-compose.yml`) |
 | „Tageslimit erreicht“ | `ASK_DAILY_LIMIT` erhöhen oder bis morgen warten |
 | Zähler springt nach Neustart von *ask* auf das volle Limit | `docker compose logs ask` zeigt eine WARNUNG, wenn `.state` nicht beschreibbar ist — dann `chown -R` auf den Container-Benutzer (`COCKPIT_UID` in `.env`) |
@@ -701,16 +703,15 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   nach Buchungsdatum (Sales Spalte C), Anfragen nach Anfragedatum, Angebote
   nach Versanddatum (C_AP). Er endet höchstens heute.
 - **Reisezeitraum (Anreise)** (gestrichelter Rahmen, aktiv farbig): optionaler
-  zweiter Filter auf die Anreise — Sales Spalte B, C_AP Startdatum. Ohne
-  Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
+  zweiter Filter auf die Anreise über Von/Bis — Sales Spalte B, C_AP
+  Startdatum. „Alle Anreisen“ hebt ihn auf. Ohne Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
   Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist.
   Annual Planning und FTE werden dann ausgeblendet (sie gelten je
   Buchungsmonat), Anfragen vor 2024 haben kein Anreisedatum.
-- Die **Schnellauswahl** rechnet ab heute: *Laufender Monat* (Standard beim
-  Start), *Vor- bis Folgemonat* (z. B. 01.09.–30.11.), *3 Monate* und
-  *12 Monate* taggenau zurück (am 02.10.2026: 03.07.–02.10. bzw.
-  03.10.2025–02.10.2026), *Geschäftsjahr*, *Kalenderjahr*. Beim Reisezeitraum
-  reichen Monat, Geschäfts- und Kalenderjahr bis zu ihrem Ende.
+- Die **Schnellauswahl** (nur Buchungs-/Erfassungszeitraum) rechnet ab heute:
+  *Laufender Monat* (Standard beim Start), *3 Monate* und *12 Monate*
+  taggenau zurück (am 02.10.2026: 03.07.–02.10. bzw. 03.10.2025–02.10.2026),
+  *Geschäftsjahr*, *Kalenderjahr*.
 - **Annual Planning** zählt angebrochene Monate tagesanteilig und höchstens
   bis heute (Teams und AP-Anfragen). Das Vorjahr endet entsprechend heute vor
   einem Jahr.
