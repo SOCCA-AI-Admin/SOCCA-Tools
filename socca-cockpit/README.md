@@ -699,12 +699,17 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   Bundesland.
 - **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
   mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
+- **Filterleiste:** Beim Start ist nur der Buchungs- / Erfassungszeitraum mit
+  Schnellauswahl zu sehen. Die Lasche *Weitere Filter* (Trichter-Symbol)
+  klappt Bereich, Team, Reiseland, Kundenherkunft, Region und Reisezeitraum
+  auf; eine Zahl an der Lasche zeigt, wie viele davon gesetzt sind.
+  Vorjahr und Annual Planning werden immer mit angezeigt.
 - **Buchungs- / Erfassungszeitraum** (oben, durchgehender Rahmen): Buchungen
   nach Buchungsdatum (Sales Spalte C), Anfragen nach Anfragedatum, Angebote
   nach Versanddatum (C_AP). Er endet höchstens heute.
-- **Reisezeitraum (Anreise)** (gestrichelter Rahmen, aktiv farbig): optionaler
+- **Reisezeitraum (Anreise)** (unter *Weitere Filter*, aktiv farbig umrandet): optionaler
   zweiter Filter auf die Anreise über Von/Bis — Sales Spalte B, C_AP
-  Startdatum. „Alle Anreisen“ hebt ihn auf. Ohne Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
+  Startdatum. ✕ neben den Datumsfeldern hebt ihn auf. Ohne Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
   Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist.
   Annual Planning und FTE werden dann ausgeblendet (sie gelten je
   Buchungsmonat), Anfragen vor 2024 haben kein Anreisedatum.

@@ -84,6 +84,7 @@ add('ctl.bookPeriod', 'Buchungs- / Erfassungszeitraum',
     'Bestillings- / registreringsperiode',
     'Rezervasyon / kayıt dönemi',
     'Foglalási / rögzítési időszak')
+add('ctl.moreFilters', 'Weitere Filter', 'Meer filters', 'Más filtros', 'Altri filtri', 'Više filtara', 'Další filtry', 'Flere filtre', 'Diğer filtreler', 'További szűrők')
 add('ctl.area', 'Bereich', 'Segment', 'Área', 'Settore', 'Područje', 'Oblast', 'Område', 'Alan', 'Terület')
 add('ctl.team', 'Team', 'Team', 'Equipo', 'Team', 'Tim', 'Tým', 'Team', 'Takım', 'Csapat')
 add('ctl.dest', 'Reiseland', 'Bestemming', 'País de destino', 'Paese di destinazione',

@@ -14,6 +14,7 @@ EN = {
     'ctl.bookPeriod': 'Booking / entry period',
     'ctl.arrPeriod': 'Travel period (arrival)',
     'ctl.arrAll': 'All arrivals',
+    'ctl.moreFilters': 'More filters',
     'ctl.to': 'to',
     'ctl.presets': 'Quick select',
     'ctl.area': 'Segment',

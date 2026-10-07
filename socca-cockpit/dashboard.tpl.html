@@ -56,12 +56,13 @@ h1,h2,h3{color:var(--fg-strong);text-transform:uppercase;font-weight:900;letter-
 .eyebrow{color:var(--brand);font-weight:900;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
 
 /* ---------- Kopf ---------- */
-header{background:var(--soc-black);color:#fff;padding:var(--s-6) 0 0}
+header{background:var(--soc-black);color:#fff;padding:var(--s-3) 0 0}
 header .bar{height:6px;background:linear-gradient(120deg,#0089cf 0%,#0bbbef 38%,#6dbe3a 70%,#afca05 100%)}
-header .inner{max-width:1440px;margin:0 auto;padding:0 var(--s-5) var(--s-6)}
-header h1{color:#fff;font-size:40px;margin:var(--s-2) 0 var(--s-3)}
+header .inner{max-width:1440px;margin:0 auto;padding:var(--s-3) var(--s-5) var(--s-4)}
+header h1{color:#fff;font-size:40px;margin:var(--s-1) 0 0;line-height:1.05}
 header p{color:#b9b9b4;font-size:14px;margin:0;max-width:90ch}
-.headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-5);flex-wrap:wrap}
+.headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-3) var(--s-5);flex-wrap:wrap}
+.headctl{align-items:center;padding-bottom:4px}
 
 /* ---------- Steuerleiste ---------- */
 .controls{position:sticky;top:0;z-index:30;background:var(--bg-alt);
@@ -87,9 +88,29 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
   border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s-4) var(--s-3) var(--s-3);margin-top:6px}
 .fgroup>.fgroup-t{position:absolute;top:-8px;left:10px;padding:0 6px;background:var(--bg-alt);
   font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-strong)}
-.fgroup.arr{border-style:dashed}
-.fgroup.arr.on{border-style:solid;border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
-.fgroup.arr.on>.fgroup-t{color:var(--brand)}
+/* Weitere Filter: eingeklappt, schieben sich nach unten auf */
+.controls{margin-bottom:calc(var(--s-6) + 18px)}
+.morefilters{display:grid;grid-template-rows:0fr;transition:grid-template-rows 260ms var(--ease)}
+.morefilters.open{grid-template-rows:1fr}
+.morefilters>.mf-in{overflow:hidden;min-height:0}
+.morefilters .inner{padding-top:var(--s-4)}
+.daterange{display:flex;align-items:center;gap:6px}
+.morefilters select{max-width:210px}
+.morefilters input[type=date]{width:148px}
+#arrClear{padding:4px 8px;line-height:1}
+#grpArr.on input[type=date]{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.filtertab{position:absolute;left:50%;bottom:-30px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;
+  font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-strong);
+  background:var(--bg-alt);border:1px solid var(--border);border-top:0;border-radius:0 0 var(--r-md) var(--r-md);
+  padding:6px 14px 7px;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,.08)}
+.filtertab:hover{color:var(--brand)}
+.filtertab svg{width:16px;height:16px;flex:none;display:inline-block}
+.filtertab span{white-space:nowrap}
+.filtertab .chev{width:14px;height:14px;transition:transform 200ms var(--ease)}
+.filtertab[aria-expanded=true] .chev{transform:rotate(180deg)}
+.filtertab .fcount{background:var(--brand);color:#fff;border-radius:999px;font-size:11px;min-width:18px;height:18px;
+  display:inline-flex;align-items:center;justify-content:center;padding:0 5px;letter-spacing:0}
+@media (prefers-reduced-motion:reduce){.morefilters,.filtertab .chev{transition:none}}
 .controls .inner{row-gap:calc(var(--s-5) / 2)}
 
 /* ---------- Bausteine ---------- */
@@ -333,7 +354,7 @@ body[data-view="reports"] .ask-fab,body[data-view="reports"] .ask-drawer,body[da
   @page{size:A4 landscape;margin:8mm}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{background:#fff}
-  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast,#s-ask,#askFab,#askBackdrop{display:none !important}
+  header,.controls,.tip,footer,.rp-bar,.rp-nav,#s-defs,#rpToast,#s-ask,#askFab,#askBackdrop,.filtertab{display:none !important}
   body:not(.printing) .wrap > section:not(#s-reports){display:none !important}
   body.printing .wrap{display:none !important}
   body.printing #printArea{display:block}
@@ -393,9 +414,8 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
       <div>
         <div class="eyebrow">SOCCA GROUP · <span data-i18n="app.sub"></span></div>
         <h1>Sales Cockpit</h1>
-        <p id="coverage"></p>
       </div>
-      <div class="presets">
+      <div class="presets headctl">
         <div class="presets" id="viewSw">
           <button class="chip sm" data-v="cockpit" data-i18n="view.cockpit" aria-pressed="true"></button>
           <button class="chip sm" data-v="reports" data-i18n="view.reports" aria-pressed="false"></button>
@@ -425,48 +445,51 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
         <div class="presets" id="presets"></div>
       </div>
     </div>
-    <div class="fgroup arr" id="grpArr" role="group" aria-labelledby="grpArrT">
-      <span class="fgroup-t" id="grpArrT" data-i18n="ctl.arrPeriod"></span>
-      <div class="field">
-        <label for="arrFrom" data-i18n="ctl.from"></label>
-        <input type="date" id="arrFrom">
-      </div>
-      <div class="field">
-        <label for="arrTo" data-i18n="ctl.to"></label>
-        <input type="date" id="arrTo">
-      </div>
-      <button class="chip sm" id="arrClear" type="button" data-i18n="ctl.arrAll" hidden></button>
-    </div>
-    <div class="brk"></div>
-    <div class="field">
-      <label for="grp" data-i18n="ctl.area"></label>
-      <select id="grp"></select>
-    </div>
-    <div class="field">
-      <label for="team" data-i18n="ctl.team"></label>
-      <select id="team"></select>
-    </div>
-    <div class="field">
-      <label for="dest" data-i18n="ctl.dest"></label>
-      <select id="dest"></select>
-    </div>
-    <div class="field">
-      <label for="herk" data-i18n="ctl.herk"></label>
-      <select id="herk"></select>
-    </div>
-    <div class="field">
-      <label for="region" data-i18n="ctl.region"></label>
-      <select id="region"></select>
-    </div>
-    <div class="spacer"></div>
-    <div class="field">
-      <label data-i18n="ctl.compare"></label>
-      <div class="presets">
-        <button class="chip sm" id="cmpVJ" aria-pressed="true" data-i18n="ctl.py"></button>
-        <button class="chip sm" id="cmpAP" aria-pressed="true" data-i18n="ctl.ap"></button>
+  </div>
+  <!-- Weitere Filter: beim Start eingeklappt, die Lasche schiebt sie nach unten auf -->
+  <div class="morefilters" id="moreFilters" inert>
+    <div class="mf-in">
+      <div class="inner">
+        <div class="field">
+          <label for="grp" data-i18n="ctl.area"></label>
+          <select id="grp"></select>
+        </div>
+        <div class="field">
+          <label for="team" data-i18n="ctl.team"></label>
+          <select id="team"></select>
+        </div>
+        <div class="field">
+          <label for="dest" data-i18n="ctl.dest"></label>
+          <select id="dest"></select>
+        </div>
+        <div class="field">
+          <label for="herk" data-i18n="ctl.herk"></label>
+          <select id="herk"></select>
+        </div>
+        <div class="field">
+          <label for="region" data-i18n="ctl.region"></label>
+          <select id="region"></select>
+        </div>
+        <div class="field" id="grpArr">
+          <label for="arrFrom" data-i18n="ctl.arrPeriod"></label>
+          <div class="daterange">
+            <input type="date" id="arrFrom" data-i18n-aria="ctl.from">
+            <span aria-hidden="true">–</span>
+            <input type="date" id="arrTo" data-i18n-aria="ctl.to">
+            <button class="chip sm" id="arrClear" type="button" data-i18n-aria="ctl.arrAll" hidden>✕</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+  <button class="filtertab" id="filterTab" type="button" aria-expanded="false" aria-controls="moreFilters">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linejoin="round" d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+    <span data-i18n="ctl.moreFilters"></span>
+    <span class="fcount" id="filterCount" hidden></span>
+    <svg class="chev" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor"
+      stroke-width="2.4" d="M6 9l6 6 6-6"/></svg>
+  </button>
 </div>
 
 <div class="wrap">
@@ -1046,9 +1069,14 @@ function initControls(){
   document.getElementById('from').onchange = e => { const d=fromIso(e.target.value); if(!d) return; state.from=d; state.preset=null; render(); };
   document.getElementById('to').onchange   = e => { const d=fromIso(e.target.value); if(!d) return; state.to=d; state.preset=null; render(); };
 
-  const tv=document.getElementById('cmpVJ'), ta=document.getElementById('cmpAP');
-  tv.onclick=()=>{state.vj=!state.vj; render();};
-  ta.onclick=()=>{state.ap=!state.ap; render();};
+  /* Vorjahr und Annual Planning werden immer angezeigt (state.vj / state.ap bleiben true) */
+  const tab=document.getElementById('filterTab'), mf=document.getElementById('moreFilters');
+  tab.onclick=()=>{
+    const open=!mf.classList.contains('open');
+    mf.classList.toggle('open', open); tab.setAttribute('aria-expanded', String(open));
+    if(open) mf.removeAttribute('inert'); else mf.setAttribute('inert','');
+    setTimeout(syncCtrlHeight, 300);
+  };
 
   const sel = (el,group)=>{
     el.innerHTML = [...new Set(M.map(m=>m.g))].map(gr =>
@@ -1202,8 +1230,9 @@ function render(){
   document.getElementById('dest').value=state.dest;
   document.getElementById('herk').value=state.herk;
   document.getElementById('region').value=state.region;
-  document.getElementById('cmpVJ').setAttribute('aria-pressed',String(state.vj));
-  document.getElementById('cmpAP').setAttribute('aria-pressed',String(state.ap));
+  /* Zahl aktiver weiterer Filter an der Lasche — sichtbar auch im eingeklappten Zustand */
+  const nAct=[state.group!=='all', !!state.team, !!state.dest, !!state.herk, !!state.region, arrActive()].filter(Boolean).length;
+  const fc=document.getElementById('filterCount'); fc.hidden=!nAct; fc.textContent=nAct;
   document.querySelectorAll('#presets [data-p]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.p===state.preset)));
   document.getElementById('arrFrom').value = state.arrFrom ? iso(state.arrFrom) : '';
   document.getElementById('arrTo').value   = state.arrTo   ? iso(state.arrTo)   : '';
@@ -1224,7 +1253,8 @@ function render(){
 
 function renderCoverage(){
   const fmtD=d=>d.toLocaleDateString(LOC,{day:'2-digit',month:'2-digit',year:'numeric'});
-  document.getElementById('coverage').textContent = t('cv.line',{
+  const cv=document.getElementById('coverage');           // Kopfzeile mit Buchungszahl entfällt
+  if(cv) cv.textContent = t('cv.line',{
     n: D.bookings.length.toLocaleString(LOC),
     von: fmtD(FIRST), bis: fmtD(LAST),
     t: D.teams.length,
