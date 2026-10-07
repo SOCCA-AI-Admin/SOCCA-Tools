@@ -400,6 +400,20 @@ details dt{font-weight:700;color:var(--fg-strong)}
 details dd{margin:0;color:var(--fg-muted)}
 footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;color:var(--fg-muted)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Sprachauswahl mit Flaggen */
+.langpick{position:relative}
+.langpick .flag{width:21px;height:14px;flex:none;display:inline-block;border-radius:2px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.18);overflow:hidden}
+.langpick .flag svg{width:100%;height:100%;display:block}
+#langBtn{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;min-height:34px;padding:6px 10px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface);color:var(--fg);cursor:pointer;min-width:150px}
+#langBtn .chev{width:12px;height:12px;margin-left:auto;flex:none}
+#langList{position:absolute;right:0;top:calc(100% + 4px);z-index:70;margin:0;padding:4px;list-style:none;min-width:100%;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:0 8px 24px rgba(0,0,0,.18)}
+#langList li{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;cursor:pointer;
+  font-size:14px;color:var(--fg);white-space:nowrap}
+#langList li:hover,#langList li.act{background:var(--bg-alt)}
+#langList li[aria-selected=true]{font-weight:800}
 @media (max-width:640px){
   header h1{font-size:28px}
   .tile .v{font-size:22px}
@@ -421,7 +435,12 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
           <button class="chip sm" data-v="reports" data-i18n="view.reports" aria-pressed="false"></button>
         </div>
         <label class="sr" for="langSel" data-i18n="lang.label"></label>
-        <select id="langSel"></select>
+        <select id="langSel" class="sr" tabindex="-1" aria-hidden="true"></select>
+        <!-- Sprachauswahl mit Flaggen (als SVG — Flaggen-Emojis zeigt Windows nicht an) -->
+        <div class="langpick" id="langPick">
+          <button type="button" id="langBtn" aria-haspopup="listbox" aria-expanded="false" data-i18n-aria="lang.label"></button>
+          <ul id="langList" role="listbox" hidden></ul>
+        </div>
         <button class="chip sm" id="themeBtn" aria-pressed="false"></button>
       </div>
     </div>
@@ -1029,6 +1048,53 @@ function teamSet(){
 }
 function shiftYear(d,n){ return new Date(d.getFullYear()-n, d.getMonth(), d.getDate()); }
 
+/* ============================ Sprachauswahl mit Flaggen ============================ */
+const FLAGS = {
+  de:'<svg viewBox="0 0 5 3"><path fill="#000" d="M0 0h5v1H0z"/><path fill="#D00" d="M0 1h5v1H0z"/><path fill="#FFCE00" d="M0 2h5v1H0z"/></svg>',
+  en:'<svg viewBox="0 0 60 30" preserveAspectRatio="none"><clipPath id="fgUk"><path d="M0 0h60v30H0z"/></clipPath><g clip-path="url(#fgUk)"><path fill="#012169" d="M0 0h60v30H0z"/><path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30"/><path stroke="#C8102E" stroke-width="2" d="M0 0l60 30M60 0L0 30"/><path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60"/><path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60"/></g></svg>',
+  nl:'<svg viewBox="0 0 9 6"><path fill="#AE1C28" d="M0 0h9v2H0z"/><path fill="#fff" d="M0 2h9v2H0z"/><path fill="#21468B" d="M0 4h9v2H0z"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><path fill="#AA151B" d="M0 0h3v2H0z"/><path fill="#F1BF00" d="M0 .5h3v1H0z"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><path fill="#009246" d="M0 0h1v2H0z"/><path fill="#fff" d="M1 0h1v2H1z"/><path fill="#CE2B37" d="M2 0h1v2H2z"/></svg>',
+  hr:'<svg viewBox="0 0 30 20"><path fill="#FF0000" d="M0 0h30v6.7H0z"/><path fill="#fff" d="M0 6.7h30v6.6H0z"/><path fill="#171796" d="M0 13.3h30V20H0z"/><path fill="#fff" stroke="#FF0000" stroke-width=".6" d="M12 5.5h6v6.5a3 3 0 0 1-6 0z"/><path fill="#FF0000" d="M12 5.5h2v2h-2zM16 5.5h2v2h-2zM14 7.5h2v2h-2zM12 9.5h2v2h-2zM16 9.5h2v2h-2zM14 11.5h2v2.4a3 3 0 0 1-2-.4z"/></svg>',
+  cs:'<svg viewBox="0 0 6 4"><path fill="#fff" d="M0 0h6v2H0z"/><path fill="#D7141A" d="M0 2h6v2H0z"/><path fill="#11457E" d="M0 0l3 2-3 2z"/></svg>',
+  nb:'<svg viewBox="0 0 22 16"><path fill="#BA0C2F" d="M0 0h22v16H0z"/><path fill="#fff" d="M6 0h4v16H6zM0 6h22v4H0z"/><path fill="#00205B" d="M7 0h2v16H7zM0 7h22v2H0z"/></svg>',
+  tr:'<svg viewBox="0 0 30 20"><path fill="#E30A17" d="M0 0h30v20H0z"/><circle cx="11" cy="10" r="5" fill="#fff"/><circle cx="12.25" cy="10" r="4" fill="#E30A17"/><path fill="#fff" d="M15.6 10l3.7-1.2-2.3 3.2V8l2.3 3.2z"/></svg>',
+  hu:'<svg viewBox="0 0 6 3"><path fill="#CE2939" d="M0 0h6v1H0z"/><path fill="#fff" d="M0 1h6v1H0z"/><path fill="#477050" d="M0 2h6v1H0z"/></svg>',
+};
+const flagHTML = c => `<span class="flag">${FLAGS[c]||''}</span>`;
+function initLangPick(sel){
+  const btn=document.getElementById('langBtn'), list=document.getElementById('langList');
+  const chev='<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" d="M6 9l6 6 6-6"/></svg>';
+  list.innerHTML = LANGS.map(([c,n])=>`<li role="option" data-v="${c}" id="lang-${c}">${flagHTML(c)}<span>${n}</span></li>`).join('');
+  const items=[...list.children];
+  let act=-1;
+  const sync=()=>{
+    const [c,n]=LANGS.find(x=>x[0]===sel.value)||LANGS[0];
+    btn.innerHTML=`${flagHTML(c)}<span>${n}</span>${chev}`;
+    items.forEach(li=>li.setAttribute('aria-selected', String(li.dataset.v===sel.value)));
+  };
+  const mark=i=>{ act=(i+items.length)%items.length; items.forEach((li,k)=>li.classList.toggle('act',k===act));
+    list.setAttribute('aria-activedescendant', items[act].id); items[act].scrollIntoView({block:'nearest'}); };
+  const open=on=>{
+    list.hidden=!on; btn.setAttribute('aria-expanded',String(on));
+    if(on){ list.tabIndex=-1; list.focus(); mark(items.findIndex(li=>li.dataset.v===sel.value)); }
+  };
+  const pick=c=>{ open(false); btn.focus(); if(c===sel.value) return;
+    sel.value=c; sel.dispatchEvent(new Event('change')); sync(); };
+  btn.onclick=()=>open(list.hidden);
+  list.onclick=e=>{ const li=e.target.closest('li'); if(li) pick(li.dataset.v); };
+  list.onkeydown=e=>{
+    if(e.key==='ArrowDown'){ e.preventDefault(); mark(act+1); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); mark(act-1); }
+    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(items[act].dataset.v); }
+    else if(e.key==='Escape'||e.key==='Tab'){ open(false); btn.focus(); }
+  };
+  btn.onkeydown=e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); open(true); } };
+  document.addEventListener('click',e=>{ if(!list.hidden && !document.getElementById('langPick').contains(e.target)) open(false); });
+  sel.addEventListener('change', sync);
+  sync();
+}
+
 /* ============================ Aufbau UI ============================ */
 function initControls(){
   const box = document.getElementById('presets');
@@ -1101,6 +1167,7 @@ function initControls(){
   const ls=document.getElementById('langSel');
   ls.innerHTML = LANGS.map(([c,n])=>`<option value="${c}">${n}</option>`).join('');
   ls.value = LANG;
+  initLangPick(ls);
   ls.onchange = ()=>{
     LANG = ls.value;
     try{ localStorage.setItem('socca.lang', LANG); }catch(e){}
