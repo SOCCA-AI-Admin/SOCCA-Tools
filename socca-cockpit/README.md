@@ -717,6 +717,11 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   *Laufender Monat* (Standard beim Start), *3 Monate* und *12 Monate*
   taggenau zurück (am 02.10.2026: 03.07.–02.10. bzw. 03.10.2025–02.10.2026),
   *Geschäftsjahr*, *Kalenderjahr*.
+- **Monatsziel Deckungsbeitrag:** Bei *Laufender Monat* zeigt ein Strahl
+  unter dem Funnel den DB des Monats (blau) gegen das Ziel von 1,1 Mio € und
+  die Markierung *Soll heute* (Ziel × Tag ÷ Tage des Monats). Er zählt immer
+  alle Teams ohne Filter. Das Ziel steht in `dashboard.tpl.html` als
+  `GOAL_DB_MONTH`.
 - **Annual Planning** zählt angebrochene Monate tagesanteilig und höchstens
   bis heute (Teams und AP-Anfragen). Das Vorjahr endet entsprechend heute vor
   einem Jahr.

@@ -760,6 +760,29 @@ add('ask.ph', 'z. B. Welche Hotels in Kroatien hatten im GJ 2025/26 die meisten 
     'örn. 2025/26 mali yılında Hırvatistan’da en çok talep alan oteller hangileri?',
     'pl. Mely horvátországi szállodák kapták a legtöbb érdeklődést a 2025/26-os üzleti évben?')
 add('ask.close', 'Schließen', 'Sluiten', 'Cerrar', 'Chiudi', 'Zatvori', 'Zavřít', 'Lukk', 'Kapat', 'Bezárás')
+add('goal.title', 'Monatsziel Deckungsbeitrag', 'Maanddoel dekkingsbijdrage', 'Objetivo mensual de margen', 'Obiettivo mensile margine',
+    'Mjesečni cilj doprinosa', 'Měsíční cíl příspěvku', 'Månedsmål dekningsbidrag', 'Aylık katkı payı hedefi', 'Havi fedezeti cél')
+add('goal.pace', 'Soll heute', 'Doel tot vandaag', 'Objetivo a hoy', 'Obiettivo a oggi', 'Cilj do danas', 'Cíl k dnešku',
+    'Mål til i dag', 'Bugüne kadar hedef', 'Mai napig cél')
+add('goal.day', 'Tag {d} von {n}', 'dag {d} van {n}', 'día {d} de {n}', 'giorno {d} di {n}', 'dan {d} od {n}', 'den {d} z {n}',
+    'dag {d} av {n}', '{n} günün {d}. günü', '{n} napból {d}.')
+add('goal.target', 'Ziel', 'Doel', 'Objetivo', 'Obiettivo', 'Cilj', 'Cíl', 'Mål', 'Hedef', 'Cél')
+add('goal.of', 'von', 'van', 'de', 'di', 'od', 'z', 'av', '/', '/')
+add('goal.ahead', '{v} vor Plan', '{v} voor op schema', '{v} por delante del plan', '{v} sopra il piano', '{v} ispred plana',
+    '{v} před plánem', '{v} foran planen', 'plana göre {v} önde', '{v}-tal a terv előtt')
+add('goal.behind', '{v} hinter Plan', '{v} achter op schema', '{v} por detrás del plan', '{v} sotto il piano', '{v} iza plana',
+    '{v} za plánem', '{v} bak planen', 'plana göre {v} geride', '{v}-tal a terv mögött')
+add('goal.reached', 'Ziel erreicht', 'Doel bereikt', 'Objetivo alcanzado', 'Obiettivo raggiunto', 'Cilj postignut', 'Cíl splněn',
+    'Mål nådd', 'Hedefe ulaşıldı', 'Cél teljesítve')
+add('goal.note', 'Das Monatsziel gilt für die gesamte SOCCA GROUP — der Strahl zählt immer alle Teams, unabhängig von gesetzten Filtern.',
+    'Het maanddoel geldt voor de hele SOCCA GROUP — de balk telt altijd alle teams, ongeacht de filters.',
+    'El objetivo mensual es para toda SOCCA GROUP: la barra cuenta siempre todos los equipos, sin importar los filtros.',
+    'L’obiettivo mensile vale per tutta SOCCA GROUP: la barra conta sempre tutti i team, indipendentemente dai filtri.',
+    'Mjesečni cilj vrijedi za cijeli SOCCA GROUP — traka uvijek broji sve timove, neovisno o filtrima.',
+    'Měsíční cíl platí pro celou SOCCA GROUP — pruh vždy počítá všechny týmy bez ohledu na filtry.',
+    'Månedsmålet gjelder hele SOCCA GROUP — søylen teller alltid alle team, uavhengig av filtre.',
+    'Aylık hedef tüm SOCCA GROUP için geçerlidir — çubuk filtrelerden bağımsız olarak her zaman tüm takımları sayar.',
+    'A havi cél az egész SOCCA GROUP-ra vonatkozik — a sáv a szűrőktől függetlenül mindig minden csapatot számol.')
 add('ask.btn', 'Fragen', 'Vragen', 'Preguntar', 'Chiedi', 'Pitaj', 'Zeptat se', 'Spør', 'Sor', 'Kérdezés')
 add('ask.busy', 'Claude rechnet …', 'Claude rekent …', 'Claude está calculando…', 'Claude sta calcolando…',
     'Claude računa …', 'Claude počítá …', 'Claude regner …', 'Claude hesaplıyor…', 'Claude számol …')
