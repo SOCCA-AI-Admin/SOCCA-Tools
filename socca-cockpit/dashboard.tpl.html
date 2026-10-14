@@ -85,13 +85,9 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
 .chip.sm{font-size:12px;padding:4px 9px}
 .spacer{flex:1 1 auto}
 /* Monatsziel Deckungsbeitrag (nur bei „Laufender Monat“) */
-.goalbar{margin-top:var(--s-4);padding:var(--s-4) var(--s-5)}
-.goalbar .gh{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px var(--s-4);margin-bottom:var(--s-2)}
-.goalbar .gh h3{margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-strong)}
-.goalbar .gs{font-size:13px;color:var(--fg-muted);font-variant-numeric:tabular-nums}
-.goalbar .gs b{color:var(--fg-strong)}
-.goalbar .pos{color:var(--pos);font-weight:800}.goalbar .neg{color:var(--neg);font-weight:800}
-.goalbar .gn{font-size:11.5px;color:var(--fg-muted);margin-top:var(--s-2)}
+.card.goalbar{margin-top:var(--s-4);padding:var(--s-2) var(--s-5)}
+.goalbar svg{display:block}
+.goalbar .gn{font-size:11.5px;color:var(--fg-muted);margin:2px 0 var(--s-1)}
 .controls .brk{flex-basis:100%;height:0}
 /* Zeitraum-Gruppen: dezenter Rahmen mit Titel in der Linie */
 .fgroup{position:relative;display:flex;gap:var(--s-4);align-items:flex-end;flex-wrap:wrap;
@@ -1392,7 +1388,7 @@ function renderGoal(){
   const goal=GOAL_DB_MONTH, pace=goal*day/nDays, diff=db-pace;
   const share=db/goal;
   const max=Math.max(goal, db);
-  const W=1100, PL=8, PR=8, bw=W-PL-PR, y0=30, h=22, H=y0+h+30;
+  const W=1100, PL=8, PR=8, bw=W-PL-PR, y0=18, h=18, H=y0+h+21;
   const X=v=>PL+Math.max(0,v)/max*bw;
   const xG=X(goal), xP=X(pace), xI=X(db);
   const fmtE=v=>fmt('db',v);
@@ -1400,25 +1396,24 @@ function renderGoal(){
   svg+=`<rect x="${PL}" y="${y0}" width="${(xG-PL).toFixed(1)}" height="${h}" fill="var(--bg-alt)"/>`;
   svg+=`<rect x="${PL}" y="${y0}" width="${Math.max(0,xI-PL).toFixed(1)}" height="${h}" fill="var(--s-ist)"/>`;
   /* Soll heute */
-  svg+=`<line x1="${xP.toFixed(1)}" x2="${xP.toFixed(1)}" y1="${y0-6}" y2="${y0+h+6}" stroke="var(--s-vj)" stroke-width="2.5"/>`;
+  svg+=`<line x1="${xP.toFixed(1)}" x2="${xP.toFixed(1)}" y1="${y0-4}" y2="${y0+h+4}" stroke="var(--s-vj)" stroke-width="2.5"/>`;
   const anchorP = xP>W-160 ? 'end' : (xP<160 ? 'start' : 'middle');
-  svg+=`<text class="axis" x="${xP.toFixed(1)}" y="${y0-10}" text-anchor="${anchorP}">${t('goal.pace')} ${fmtE(pace)} · ${t('goal.day',{d:day,n:nDays})}</text>`;
+  svg+=`<text class="axis" x="${xP.toFixed(1)}" y="${y0-7}" text-anchor="${anchorP}">${t('goal.pace')} ${fmtE(pace)} · ${t('goal.day',{d:day,n:nDays})}</text>`;
   /* Ziel am Ende */
-  svg+=`<line x1="${xG.toFixed(1)}" x2="${xG.toFixed(1)}" y1="${y0-6}" y2="${y0+h+6}" stroke="var(--fg-strong)" stroke-width="2.5"/>`;
-  svg+=`<text class="axis-strong" x="${xG.toFixed(1)}" y="${y0+h+22}" text-anchor="end">${t('goal.target')} ${fmtE(goal)}</text>`;
+  svg+=`<line x1="${xG.toFixed(1)}" x2="${xG.toFixed(1)}" y1="${y0-4}" y2="${y0+h+4}" stroke="var(--fg-strong)" stroke-width="2.5"/>`;
+  svg+=`<text class="axis-strong" x="${xG.toFixed(1)}" y="${y0+h+16}" text-anchor="end">${t('goal.target')} ${fmtE(goal)}</text>`;
   /* Ist-Wert */
   const inside = xI-PL > 120;
-  svg+=`<text class="axis-strong" x="${(inside? xI-8 : xI+8).toFixed(1)}" y="${y0+h-6}" text-anchor="${inside?'end':'start'}"`+
+  svg+=`<text class="axis-strong" x="${(inside? xI-8 : xI+8).toFixed(1)}" y="${y0+h-5}" text-anchor="${inside?'end':'start'}"`+
        `${inside?' style="fill:#fff"':''}>${fmtE(db)}</text>`;
   svg+=`<rect class="hit" x="0" y="0" width="${W}" height="${H}" data-tip="${(t('goal.title')+'\n'+t('pn.ist')+': '+fmtFull('db',db)+
        '\n'+t('goal.pace')+': '+fmtFull('db',pace)+'\n'+t('goal.target')+': '+fmtFull('db',goal)).replace(/"/g,'&quot;')}"/>`;
+  const st = db>=goal ? `<tspan style="fill:var(--pos);font-weight:800">${t('goal.reached')}</tspan>`
+    : `<tspan style="fill:var(${diff>=0?'--pos':'--neg'});font-weight:800">${t(diff>=0?'goal.ahead':'goal.behind',{v:fmtE(Math.abs(diff))})}</tspan>`;
+  svg+=`<text class="axis" x="${PL}" y="${y0+h+16}" pointer-events="none"><tspan class="axis-strong">${fmtE(db)}</tspan> ${t('goal.of')} ${fmtE(goal)} (${nf(share*100,0)} %) · ${st}</text>`;
   svg+=`</svg>`;
-  const status = db>=goal ? `<span class="pos">${t('goal.reached')}</span>`
-    : `<span class="${diff>=0?'pos':'neg'}">${t(diff>=0?'goal.ahead':'goal.behind',{v:fmtE(Math.abs(diff))})}</span>`;
   const filtered = state.group!=='all' || state.team || dimActive() || arrActive();
-  el.innerHTML = `<div class="gh"><h3>${t('goal.title')} · ${new Date(y,m,1).toLocaleDateString(LOC,{month:'long',year:'numeric'})}</h3>`+
-    `<span class="gs"><b>${fmtE(db)}</b> ${t('goal.of')} ${fmtE(goal)} (${nf(share*100,0)} %) · ${status}</span></div>`+
-    svg + (filtered ? `<div class="gn">${t('goal.note')}</div>` : '');
+  el.innerHTML = svg + (filtered ? `<div class="gn">${t('goal.note')}</div>` : '');
   el.hidden=false;
   bindTips('#goalBar');
 }
