@@ -665,6 +665,9 @@ greift dann Deutsch.
 | `i18n/en.py` | Englische Texte, werden von `make_i18n.py` eingelesen |
 | `i18n/make_i18n.py` | Erzeugt `i18n.js` neu — hier werden Übersetzungen geändert |
 | `geo/make_geo.py` | Erzeugt `geo.js` neu, falls der Kartenausschnitt geändert wird |
+| `geo/geo_plz.js` | Karte der PLZ-Gebiete (DE, AT, CH, NL), fertig gebaut |
+| `geo/plz_bundesland.json` | Volle PLZ → Bundesland/Kanton/Provinz, liest `etl.py` (bleibt auf dem Server) |
+| `geo/make_plz_geo.py` | Erzeugt `geo_plz.js` neu — nur nötig, wenn sich die Gebiete ändern sollen; Quellen und Lizenzen stehen im Kopf der Datei |
 | `update.sh` | Der Wächter: prüft auf Änderung, baut, protokolliert |
 | `fetch_sharepoint.py` | Holt die Mappen aus SharePoint, nur bei Änderung |
 | `deploy/sharepoint.env.vorlage` | Vorlage für den SharePoint-Zugang (`sharepoint.env`) |
@@ -695,19 +698,46 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   `Leads` und `Props` der Mappe und dort nur monatsgenau.
 - **FTE und Annual Planning** liegen nur je Team vor. Bei gesetztem Länder-
   oder Regionsfilter bleiben sie und alles daraus Abgeleitete leer.
-- Die **Region** aus Spalte H gibt es nur für Buchungen; Combit führt kein
-  Bundesland.
+- **Region** (Bundesland, Kanton, Provinz): bei Buchungen aus Spalte H im
+  Blatt Sales — ist sie leer, aus der Kunden-PLZ (Spalte X). Anfragen und
+  Angebote bekommen das Bundesland aus der PLZ in C_AP (Combit führt selbst
+  keins), für Kunden aus DE, AT, CH und NL. Die Zuordnung PLZ → Bundesland
+  steht in `geo/plz_bundesland.json` (aus GeoNames, erzeugt von
+  `geo/make_plz_geo.py`); fehlt eine PLZ dort, gilt die nächste bekannte PLZ
+  derselben Leitregion. Ohne gültige PLZ fehlt eine Anfrage im Bundesland.
+- **PLZ-Gebiet** = die ersten zwei Ziffern der Kunden-PLZ (Leitregion), für
+  Kunden aus Deutschland, Österreich, der Schweiz und den Niederlanden.
+  Buchungen aus Sales Spalte X, Anfragen und Angebote aus der Spalte `PLZ` in
+  C_AP. Platzhalter wie `00000`, `TEST` oder Excel-Fehler zählen als ohne PLZ.
+  Die volle PLZ landet bewusst nicht in `data.json` (die Datei liegt offen im
+  Browser), damit sich keine einzelnen Vereine zurückverfolgen lassen.
+  Die Karte zeigt die Gebiete über den Schalter *PLZ-Gebiet* im Abschnitt
+  Karte; *Tabelle anzeigen* blendet darunter die Bundesländer (Kantone,
+  Provinzen) mit Unique Anfragen, Angeboten, Buchungen, Buchungsquote, Teams,
+  Umsatz und DB ein. Ein Klick auf ein Bundesland klappt seine PLZ-Gebiete
+  auf (*Alle aufklappen* für alle). Sortiert wird per Klick auf die
+  Spaltenköpfe; die erste Spalte sortiert die Bundesländer nach Namen und
+  die PLZ-Gebiete nach den zwei Ziffern, standardmäßig stehen die
+  PLZ-Gebiete nach Ziffern geordnet. Ein PLZ-Gebiet, das über eine
+  Landesgrenze reicht (z. B. 63 in Hessen und Bayern), steht unter beiden
+  Ländern mit seinem jeweiligen Anteil. Klick auf ein PLZ-Gebiet (Tabelle
+  oder Karte) setzt den PLZ-Filter, angezeigt in der Filterleiste. Gültige PLZ gibt es bei Anfragen verlässlich erst
+  seit Mitte 2025 (über 90 %), 2024 fehlt sie bei rund einem Viertel —
+  Vorjahresvergleiche mit PLZ-Filter sind deshalb nach unten verzerrt.
+  „Frag das Cockpit“ kennt den Filter `plz_regions` und die Gruppierung
+  `plz_region`; Anfragen und Angebote gibt es dort jetzt auch je Region.
 - **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
   mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
 - **Filterleiste:** Beim Start ist nur der Buchungs- / Erfassungszeitraum mit
-  Schnellauswahl zu sehen. Die Lasche *Weitere Filter* (Trichter-Symbol)
+  Schnellauswahl zu sehen. Die Lasche *Filter* (Trichter-Symbol)
   klappt Bereich, Team, Reiseland, Kundenherkunft, Region und Reisezeitraum
-  auf; eine Zahl an der Lasche zeigt, wie viele davon gesetzt sind.
+  auf; eine Zahl an der Lasche zeigt, wie viele davon gesetzt sind. Ein über
+  die Karte gesetzter PLZ-Filter erscheint dort als Schaltfläche mit ✕.
   Vorjahr und Annual Planning werden immer mit angezeigt.
 - **Buchungs- / Erfassungszeitraum** (oben, durchgehender Rahmen): Buchungen
   nach Buchungsdatum (Sales Spalte C), Anfragen nach Anfragedatum, Angebote
   nach Versanddatum (C_AP). Er endet höchstens heute.
-- **Reisezeitraum (Anreise)** (unter *Weitere Filter*, aktiv farbig umrandet): optionaler
+- **Reisezeitraum (Anreise)** (unter *Filter*, aktiv farbig umrandet): optionaler
   zweiter Filter auf die Anreise über Von/Bis — Sales Spalte B, C_AP
   Startdatum. ✕ neben den Datumsfeldern hebt ihn auf. Ohne Auswahl zählen alle Anreisen; gesetzt zählt nur, was im Buchungs-/
   Erfassungszeitraum gebucht bzw. erfasst wurde UND im Reisezeitraum anreist.
@@ -719,7 +749,7 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   *Geschäftsjahr*, *Kalenderjahr*.
 - **Monatsziel Deckungsbeitrag:** Bei *Laufender Monat* zeigt ein Strahl
   unter dem Funnel den DB des Monats (blau) gegen das Ziel von 1,1 Mio € und
-  die Markierung *Soll heute* (Ziel × Tag ÷ Tage des Monats). Er zählt immer
+  die Markierung *Soll heute* (Ziel × Tag ÷ Tage des Monats; Wert im Tooltip). Er zählt immer
   alle Teams ohne Filter. Das Ziel steht in `dashboard.tpl.html` als
   `GOAL_DB_MONTH`.
 - **Annual Planning** zählt angebrochene Monate tagesanteilig und höchstens

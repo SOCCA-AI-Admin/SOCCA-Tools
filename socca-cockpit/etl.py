@@ -23,7 +23,7 @@ Definitionen (gegen das Blatt "Report" verifiziert):
   Hotel           Spalte 9 im Blatt Sales = WebID im Combit-Export = WebID im Blatt Locations
   Geschaeftsjahr  Juli bis Juni (AP-Logik)
 """
-import sys, os, json, csv, datetime, math
+import sys, os, re, json, csv, datetime, math, bisect
 from collections import defaultdict
 
 EPOCH = datetime.date(1899, 12, 30)
@@ -69,6 +69,9 @@ REGION = {
            'SG': 'St. Gallen', 'GR': 'Graubünden', 'AG': 'Aargau',
            'TG': 'Thurgau', 'TI': 'Tessin', 'VD': 'Waadt', 'VS': 'Wallis',
            'NE': 'Neuenburg', 'GE': 'Genf', 'JU': 'Jura'},
+    'NL': {'NH': 'Noord-Holland', 'ZH': 'Zuid-Holland', 'UT': 'Utrecht', 'NB': 'Noord-Brabant',
+           'GE': 'Gelderland', 'OV': 'Overijssel', 'FL': 'Flevoland', 'FR': 'Friesland',
+           'GR': 'Groningen', 'DR': 'Drenthe', 'ZE': 'Zeeland', 'LI': 'Limburg'},
 }
 
 
@@ -84,6 +87,75 @@ def norm_region(v):
     """Umlaute in Regionskuerzeln vereinheitlichen (NOE, OOE)."""
     t = (v or '').strip().upper()
     return t.replace('\u00d6', 'OE').replace('\u00c4', 'AE').replace('\u00dc', 'UE') or None
+
+
+# PLZ-Gebiete: nur die ersten zwei Ziffern (Leitregion), nie die volle PLZ.
+# Volle PLZ zusammen mit Tag, Team und Reiseland liessen auf einzelne
+# Vereine schliessen - die Daten liegen offen im Browser.
+PLZ_LAENDER = ('D', 'A', 'CH', 'NL')
+
+
+def plz_digits(land, v):
+    """Volle PLZ als Ziffernfolge ('80331', '1010') oder None.
+
+    D   5 Ziffern (Excel verliert die fuehrende Null: 4825 -> 04825)
+    A   4 Ziffern, CH 4 Ziffern, NL 4 Ziffern plus optional zwei Buchstaben
+    Platzhalter wie 00000, 0, TEST oder Excel-Fehlerwerte fallen heraus.
+    """
+    if land not in PLZ_LAENDER or v is None:
+        return None
+    if isinstance(v, float):
+        if not v.is_integer():
+            return None
+        v = int(v)
+    t = str(v).strip().upper().replace('\u00a0', ' ')
+    t = re.sub(r'^(D|DE|A|AT|CH|NL)\s*[-–]?\s*(?=\d)', '', t)   # A-8790, D 80331
+    if land == 'NL':
+        m = re.fullmatch(r'(\d{4})\s*[A-Z]{0,2}', t)
+        d = m.group(1) if m else None
+    else:
+        d = t if t.isdigit() else None
+        if d and land == 'D' and len(d) == 4:
+            d = '0' + d
+        if d and len(d) != (5 if land == 'D' else 4):
+            d = None
+    if not d or d[0] == '0' and (land != 'D' or d[1] == '0'):
+        return None
+    return d
+
+
+def plz_region(land, v):
+    """'D-80', 'A-10', 'CH-80', 'NL-10' oder None."""
+    d = plz_digits(land, v)
+    return f'{land}-{d[:2]}' if d else None
+
+
+# Volle PLZ -> Bundesland/Kanton/Provinz (Kuerzel wie Sales Spalte H), erzeugt
+# von geo/make_plz_geo.py aus GeoNames. Fehlt eine PLZ, gilt die naechste
+# bekannte PLZ derselben Leitregion.
+_PLZ_STATE = None
+
+
+def plz_state(land, v):
+    global _PLZ_STATE
+    d = plz_digits(land, v)
+    if not d:
+        return None
+    if _PLZ_STATE is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'geo', 'plz_bundesland.json')
+        try:
+            raw = json.load(open(path, encoding='utf-8'))
+        except OSError:
+            raw = {}
+        _PLZ_STATE = {k: (m, sorted(m)) for k, m in raw.items()}
+    m, keys = _PLZ_STATE.get(land, ({}, []))
+    if d in m:
+        return m[d]
+    i = bisect.bisect_left(keys, d)
+    near = [k for k in keys[max(0, i - 1):i + 1] if k[:2] == d[:2]]
+    if not near:
+        return None
+    return m[min(near, key=lambda k: abs(int(k) - int(d)))]
 
 
 def region_label(land, code):
@@ -243,7 +315,7 @@ class Workbook:
 # ---------------------------------------------------------------- Mappe
 SALES_COL = dict(Date=2, Arrival=1, Sport=4, Team=5, Reg=6, Region=7, Hotel=9,
                  Land=10, Destination=11, VK=12, EK=13, Margin=15,
-                 Teams=24, Pax=27, Nights=28)
+                 PLZ=23, Teams=24, Pax=27, Nights=28)
 
 
 def read_workbook(path):
@@ -266,7 +338,10 @@ def read_workbook(path):
             team=text(d.get(SALES_COL['Team'])),
             sport=text(d.get(SALES_COL['Sport'])),
             reg=norm_country(text(d.get(SALES_COL['Reg']))),
-            region=norm_region(text(d.get(SALES_COL['Region']))),
+            region=(norm_region(text(d.get(SALES_COL['Region'])))
+                    # Spalte H leer: Bundesland aus der PLZ
+                    or plz_state(norm_country(text(d.get(SALES_COL['Reg']))), d.get(SALES_COL['PLZ']))),
+            plz=plz_region(norm_country(text(d.get(SALES_COL['Reg']))), d.get(SALES_COL['PLZ'])),
             land=norm_country(text(d.get(SALES_COL['Land']))),
             hotel=int(hotel) if hotel and 9000 < hotel < 100000 else None,
             name=text(d.get(SALES_COL['Destination'])),
@@ -434,6 +509,8 @@ def read_combit(path):
         team = text(row.get('Team'))
         herk = norm_country(text(row.get('KundenHerkunft')))
         ziel = norm_country(text(row.get('Destination')))
+        plz = plz_region(herk, row.get('PLZ'))               # nur Leitregion, s. plz_region
+        rg = plz_state(herk, row.get('PLZ'))                 # Bundesland/Kanton/Provinz aus der PLZ
         a = as_date(row.get('Anfragedatum'))
         if a is None:
             continue
@@ -445,12 +522,12 @@ def read_combit(path):
                or str(row.get('ErfassungsBenutzer') or '').strip() == 'Webformular_Import')
         art = (text(row.get('Belegart')) or '')
         if art == 'Anfrage':
-            alle.append((a, team, wid, herk, ziel, st))
+            alle.append((a, team, wid, herk, ziel, st, plz, rg))
             key = (str(row.get('AnsprechpartnerMail') or '').strip().lower(),
                    team, str(row.get('AP') or '').strip())
             prev = anfragen.get(key)
             if prev is None or a < prev[0]:
-                anfragen[key] = (a, team, web, wid, herk, ziel, st)
+                anfragen[key] = (a, team, web, wid, herk, ziel, st, plz, rg)
             if wid:
                 hk = key + (wid,)
                 hp = hotel_anfragen.get(hk)
@@ -460,29 +537,29 @@ def read_combit(path):
             o = as_date(row.get('AngebotVersandtDatum'))
             if o is None or o.year < 2010:
                 o = a
-            angebote.append((o, team, wid, herk, ziel, st))
+            angebote.append((o, team, wid, herk, ziel, st, plz, rg))
 
     # Schlüssel tragen zusätzlich den Anreisetag (Startdatum, -1 = unbekannt),
     # damit das Cockpit nach Reisezeitraum filtern kann.
-    # (Erfassungstag, Team, Herkunft, Reiseland, Anreisetag) -> leads, web, offers, alle Anfragen
+    # (Erfassungstag, Team, Herkunft, Reiseland, Anreisetag, PLZ-Gebiet, Bundesland) -> leads, web, offers, alle Anfragen
     by_team = defaultdict(lambda: [0, 0, 0, 0])
     by_hotel = defaultdict(lambda: [0, 0, 0, 0])    # (Tag, Hotel, Team, Anreisetag) -> leads, web, offers, alle
-    for a, team, web, wid, herk, ziel, st in anfragen.values():
+    for a, team, web, wid, herk, ziel, st, plz, rg in anfragen.values():
         if team:
-            r = by_team[(dayidx(a), team, herk, ziel, st)]
+            r = by_team[(dayidx(a), team, herk, ziel, st, plz, rg)]
             r[0] += 1
             r[1] += 1 if web else 0
     for (_, team, _, wid), (a, web, st) in hotel_anfragen.items():
         r = by_hotel[(dayidx(a), wid, team, st)]; r[0] += 1; r[1] += 1 if web else 0
-    for o, team, wid, herk, ziel, st in angebote:
+    for o, team, wid, herk, ziel, st, plz, rg in angebote:
         if team:
-            by_team[(dayidx(o), team, herk, ziel, st)][2] += 1
+            by_team[(dayidx(o), team, herk, ziel, st, plz, rg)][2] += 1
         if wid:
             by_hotel[(dayidx(o), wid, team, st)][2] += 1
     # Alle Anfragen (ohne Unique-Regel) für die Buchungsquote je Team und Hotel
-    for a, team, wid, herk, ziel, st in alle:
+    for a, team, wid, herk, ziel, st, plz, rg in alle:
         if team:
-            by_team[(dayidx(a), team, herk, ziel, st)][3] += 1
+            by_team[(dayidx(a), team, herk, ziel, st, plz, rg)][3] += 1
         if wid:
             by_hotel[(dayidx(a), wid, team, st)][3] += 1
     return by_team, by_hotel
@@ -543,7 +620,7 @@ def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
         if b['team']:
             teams_m[(b['team'], monthidx(DAY0 + datetime.timedelta(days=b['d'])))] += b['teams'] or 0
     leads_m = defaultdict(float)                     # (Team, Monat) -> unique Anfragen
-    for (d, team, _h, _z, _st), v in by_team.items():
+    for (d, team, _h, _z, _st, _p, _r), v in by_team.items():
         day = DAY0 + datetime.timedelta(days=d)
         if excel_compat:
             nxt = day + datetime.timedelta(days=1)
@@ -621,22 +698,39 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     for b in wbd['bookings']:
         if b['region'] and b['reg']:
             rcount[(b['reg'], b['region'])] += 1
+    for k, v in by_team.items():           # Bundesland der Anfragen (aus der PLZ)
+        if k[6] and k[2]:
+            rcount[(k[2], k[6])] += v[0] + v[2]
     keys = sorted(rcount, key=lambda k: (regs.index(k[0]) if k[0] in regs else 99,
                                          -rcount[k], k[1]))
     regions = [[land, code, region_label(land, code)] for land, code in keys]
     gix = {k: i for i, k in enumerate(keys)}
 
+    # PLZ-Gebiete (Leitregion, zwei Ziffern) nach Laendern und Kennziffer
+    pcount = defaultdict(int)
+    for b in wbd['bookings']:
+        if b['plz']:
+            pcount[b['plz']] += 1
+    for k, v in by_team.items():
+        if k[5]:
+            pcount[k[5]] += v[0] + v[2]
+    plzs = sorted(pcount, key=lambda k: (PLZ_LAENDER.index(k.split('-')[0]), k))
+    pix = {k: i for i, k in enumerate(plzs)}
+
     bookings = [[b['d'], tix.get(b['team'], -1), six.get(b['sport'], -1),
                  rix.get(b['reg'], -1), hix.get(b['hotel'], -1),
                  r2(b['vk']), r2(b['ek']), r2(b['marg']),
                  r2(b['teams'], 2), r2(b['pax'], 0), r2(b['nights'], 0),
-                 gix.get((b['reg'], b['region']), -1), dix.get(b['land'], -1), b['arr']]
+                 gix.get((b['reg'], b['region']), -1), dix.get(b['land'], -1), b['arr'],
+                 pix.get(b['plz'], -1)]
                 for b in wbd['bookings']]
 
-    lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v, st]
-                        for (d, t, h, z, st), v in by_team.items() if t in tix])
-    # bookings:  [..., 13 = Anreisetag (Spalte B), -1 = unbekannt]
-    # leadDaily: [Tag, Team, Herkunft, Reiseland, Anfragen unique, Web, Angebote, alle Anfragen, Anreisetag]
+    lead_team = sorted([[d, tix[t], rix.get(h, -1), dix.get(z, -1), *v, st, pix.get(p, -1),
+                         gix.get((h, rg), -1)]
+                        for (d, t, h, z, st, p, rg), v in by_team.items() if t in tix])
+    # bookings:  [..., 13 = Anreisetag (Spalte B), -1 = unbekannt, 14 = PLZ-Gebiet (Index in plz), -1 = ohne]
+    # leadDaily: [Tag, Team, Herkunft, Reiseland, Anfragen unique, Web, Angebote, alle Anfragen, Anreisetag,
+    #             PLZ-Gebiet, Region (Bundesland aus der PLZ, Index in regions)]
     # leadHotel: [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote, alle Anfragen, Anreisetag]
     lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v, st] for (d, h, t, st), v in by_hotel.items() if h in hix])
 
@@ -666,7 +760,7 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
             sources=dict(workbook=os.path.basename(xl), combit=os.path.basename(combit_path)),
         ),
         teams=teams, sports=sports, regs=regs, dests=dests,
-        regions=regions, countries=COUNTRY, hotels=hotels,
+        regions=regions, countries=COUNTRY, hotels=hotels, plz=plzs,
         bookings=bookings,
         leadDaily=lead_team,
         leadHotel=lead_hotel,
@@ -686,6 +780,10 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     print(f'Hotels           {len(hotels)} (Stammliste {len(master)}, ohne Stammsatz {len(fallback)})')
     print(f'Herkunftslaender {len(regs)} | Regionen {len(regions)} | Reiselaender {len(dests)}')
     print(f'Buchungen        {len(bookings)}')
+    nb = sum(1 for b in bookings if b[14] >= 0)
+    nl = sum(r[4] for r in lead_team if r[9] >= 0); nla = sum(r[4] for r in lead_team)
+    nr = sum(r[4] for r in lead_team if r[10] >= 0)
+    print(f'PLZ-Gebiete      {len(plzs)} | Buchungen mit PLZ {nb} | Anfragen mit PLZ {nl}, mit Bundesland {nr} von {nla}')
     print(f'Leads je Team    {len(lead_team)} Zeilen')
     print(f'Leads je Hotel   {len(lead_hotel)} Zeilen')
     print(f'FTE              {len(data["fte"])} Zeilen')

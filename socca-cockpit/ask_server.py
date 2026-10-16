@@ -154,6 +154,8 @@ FILTER_SCHEMA = {
         'destinations': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Reiseländer als Code (I, HR, ES, D, A, …)'},
         'origin_countries': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Herkunftsländer der Kunden als Code (D, A, CH, …)'},
         'regions': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Bundesland/Kanton der Kunden, Code oder Name, z. B. "BY" oder "Bayern"'},
+        'plz_regions': {'type': 'array', 'items': {'type': 'string'},
+                        'description': 'PLZ-Gebiet der Kunden = erste zwei Ziffern der PLZ, mit Land: "DE-80", "AT-10", "CH-80", "NL-10"; nur "80" = alle Länder mit dieser Leitregion'},
         'hotels': {'type': 'array', 'items': {'type': 'integer'}, 'description': 'WebIDs (mit find_hotels ermitteln)'},
         'sports': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Sportart-Codes laut get_overview'},
         'arrival_from': {'type': 'string', 'description': 'Reisezeitraum: Anreise ab YYYY-MM-DD (Sales Spalte B, C_AP Startdatum)'},
@@ -296,7 +298,7 @@ def context_note(ctx):
         return ''
     labels = {'von': 'Buchungs-/Erfassungszeitraum von', 'bis': 'bis', 'reise_von': 'Reisezeitraum (Anreise) von',
               'reise_bis': 'Anreise bis', 'bereich': 'Teamgruppe', 'team': 'Team', 'reiseland': 'Reiseland',
-              'herkunft': 'Herkunft', 'region': 'Region'}
+              'herkunft': 'Herkunft', 'region': 'Region', 'plz_gebiet': 'PLZ-Gebiet'}
     parts = [f'{labels[k]} {str(v)[:40]}' for k, v in ctx.items()
              if k in labels and v not in (None, '', 'all')]
     if not parts:

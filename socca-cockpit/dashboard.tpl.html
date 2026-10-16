@@ -209,6 +209,29 @@ path.geo.sel{stroke:var(--s-ap);stroke-width:2.6}
 .maplegend .lg{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:56px}
 .maplegend .sw{width:100%;height:12px;display:block;border-radius:1px}
 .maplegend .cap{margin-right:var(--s-3);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+/* PLZ-Gebiete: Karte begrenzt hoch, Tabelle auf Wunsch darunter */
+.plzhead{display:flex;align-items:baseline;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-3)}
+.plzhead .maptitle{margin:0}
+.plzhead .spacer{flex:1}
+#mapPLZ{max-width:640px;margin:0 auto}
+path.land{fill:none;stroke:var(--fg-strong);stroke-width:1.1;stroke-linejoin:round;pointer-events:none}
+path.geo.plz{stroke-width:.6}
+path.geo.plz:hover{stroke-width:1.6}
+.mapsrc{font-size:11px;color:var(--fg-muted);margin-top:var(--s-3)}
+#plzTableWrap{margin-top:var(--s-4);max-height:min(60vh,560px)}
+.mapgrid > .card{min-width:0}
+#plzTable tbody tr{cursor:pointer}
+#plzTable tr.st td{font-weight:700;color:var(--fg-strong)}
+#plzTable tr.st td:first-child{font-weight:700}
+#plzTable tr.pz td:first-child{padding-left:30px}
+#plzTable tr.pz td{background:var(--surface)}
+#plzTable tr.nopz td{color:var(--fg-muted);font-style:italic;cursor:default}
+#plzTable .caret{display:inline-block;width:16px;color:var(--fg-muted)}
+#plzTable .muted{font-weight:400;color:var(--fg-muted);font-size:11px;margin-left:4px}
+#plzTable tbody tr.sel td{background:var(--bg-alt);box-shadow:inset 0 -2px 0 var(--s-ap)}
+#plzTable tbody tr.none td{color:var(--fg-muted);font-style:italic;cursor:default}
+#plzTable thead th.on{color:var(--fg-strong)}
+.plzchip{align-self:flex-end;min-height:34px;color:var(--brand);border-color:var(--brand);font-weight:700}
 
 /* ---------- Hotelsuche ---------- */
 .hsearch{position:relative;max-width:560px;margin-bottom:var(--s-5)}
@@ -511,6 +534,7 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
             <button class="chip sm" id="arrClear" type="button" data-i18n-aria="ctl.arrAll" hidden>✕</button>
           </div>
         </div>
+        <button class="chip plzchip" id="plzChip" type="button" hidden></button>
         <button class="chip resetbtn" id="filterReset" type="button" data-i18n="ctl.reset" hidden></button>
       </div>
     </div>
@@ -553,6 +577,7 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
       <div class="presets">
         <button class="chip sm" id="mapDest" aria-pressed="true" data-i18n="ctl.dest"></button>
         <button class="chip sm" id="mapHerk" aria-pressed="false" data-i18n="ctl.herk"></button>
+        <button class="chip sm" id="mapPlz" aria-pressed="false" data-i18n="ctl.plz"></button>
       </div>
       <label class="sr" for="mapMetric" data-i18n="ho.metric"></label>
       <select id="mapMetric"></select>
@@ -562,6 +587,18 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
         <h3 class="maptitle" id="mapTitleEU"></h3>
         <div id="mapEU"></div>
         <div class="maplegend" id="mapLegEU"></div>
+      </div>
+      <div class="card" id="mapPlzCard" hidden>
+        <div class="plzhead">
+          <h3 class="maptitle" data-i18n="mp.titlePlz"></h3>
+          <span class="spacer"></span>
+          <button class="chip sm" id="plzOpenAll" type="button" hidden></button>
+          <button class="chip sm" id="plzTableBtn" type="button" aria-pressed="false" aria-controls="plzTableWrap"></button>
+        </div>
+        <div id="mapPLZ"></div>
+        <div class="maplegend" id="mapLegPLZ"></div>
+        <div class="tablewrap" id="plzTableWrap" hidden><table id="plzTable"></table></div>
+        <div class="mapsrc" data-i18n="mp.srcPlz"></div>
       </div>
       <div class="card" id="mapDachCard" hidden>
         <h3 class="maptitle" data-i18n="mp.titleDach"></h3>
@@ -1017,14 +1054,14 @@ const state = {
   trend:'db', teamMetric:'db', sort:{col:'db',dir:-1}, preset:'1m',
   arrFrom:null, arrTo:null, arrPreset:null,      // Reisezeitraum (Anreise), null = alle Anreisen
   hotel:null, hotelMetric:'book', topMetric:'db', topSort:null,
-  dest:'', herk:'', region:'',
-  mapMode:'dest', mapMetric:'db'
+  dest:'', herk:'', region:'', plz:'',
+  mapMode:'dest', mapMetric:'db', plzTable:false, plzSort:{col:'leads',dir:-1,child:'code'}, plzOpen:new Set()
 };
 
-/* Aktive Dimensionsfilter. Region schliesst Anfragen und Angebote aus,
-   weil Combit kein Bundesland fuehrt. */
-function dimActive(){ return !!(state.dest || state.herk || state.region); }
-function leadDimOK(){ return !state.region; }
+/* Aktive Dimensionsfilter. Anfragen und Angebote haben seit dem PLZ-Ausbau
+   ein Bundesland (aus der Kunden-PLZ, data.leadDaily Spalte 10). */
+function dimActive(){ return !!(state.dest || state.herk || state.region || state.plz); }
+function leadDimOK(){ return true; }
 /* Reisezeitraum: zusätzlicher Filter auf das Anreisedatum (Sales Spalte B,
    C_AP Startdatum). ARRWIN ist das Fenster der laufenden Berechnung —
    beim Vorjahr um ein Jahr verschoben. */
@@ -1051,13 +1088,30 @@ function bookOK(r){
   if(state.dest   && D.dests[r[12]] !== state.dest) return false;
   if(state.herk   && D.regs[r[3]]   !== state.herk) return false;
   if(state.region && String(r[11])  !== state.region) return false;
+  if(state.plz    && String(plzOf(r[14])) !== state.plz) return false;
   return true;
 }
 function leadOK(r){
   if(!arrOK(r[8])) return false;
   if(state.dest && D.dests[r[3]] !== state.dest) return false;
   if(state.herk && D.regs[r[2]]  !== state.herk) return false;
+  if(state.region && String(r[10]) !== state.region) return false;
+  if(state.plz  && String(plzOf(r[9])) !== state.plz) return false;
   return true;
+}
+/* PLZ-Gebiete (Leitregion = erste zwei Ziffern) aus data.json.plz, z. B. 'D-80'.
+   Nur Gebiete mit Kartenfläche zählen; Tippfehler wie 'D-05' gelten als ohne PLZ. */
+const PLZ_GEO = new Map(GEO.plz.f.map(f=>[f[0], f]));
+const PLZ_OK = (D.plz||[]).map(k=>PLZ_GEO.has(k));
+const plzOf = i => (i!==undefined && i>=0 && PLZ_OK[i]) ? i : -1;
+const PLZ_LANDS = ['D','A','CH','NL'];
+function plzLabel(i, withLand){
+  const k=D.plz[i], f=PLZ_GEO.get(k); if(!k) return '';
+  const [land,code]=k.split('-'), iso=ISO2[land]||land;
+  const short = `${iso} ${code}${f&&f[1] ? ' '+f[1] : ''}`;
+  if(!withLand) return short;
+  let n=iso; try{ n=REGION_NAME ? REGION_NAME.of(iso) : iso; }catch(e){}
+  return `${short} · ${n}`;
 }
 
 function teamSet(){
@@ -1156,7 +1210,7 @@ function initControls(){
   /* Vorjahr und Annual Planning werden immer angezeigt (state.vj / state.ap bleiben true) */
   /* Filter zurücksetzen: alles wie beim Start (Laufender Monat, keine weiteren Filter) */
   document.getElementById('filterReset').onclick=()=>{
-    Object.assign(state,{group:'all',team:'',dest:'',herk:'',region:''});
+    Object.assign(state,{group:'all',team:'',dest:'',herk:'',region:'',plz:''});
     document.getElementById('grp').value='all'; fillTeams(); fillRegions();
     applyArrPreset('none'); applyPreset('1m'); render();
   };
@@ -1189,6 +1243,9 @@ function initControls(){
   mm.onchange=()=>{ state.mapMetric=mm.value; renderMaps(); };
   document.getElementById('mapDest').onclick=()=>{ state.mapMode='dest'; render(); };
   document.getElementById('mapHerk').onclick=()=>{ state.mapMode='herk'; render(); };
+  document.getElementById('mapPlz').onclick=()=>{ state.mapMode='plz'; render(); };
+  document.getElementById('plzTableBtn').onclick=()=>{ state.plzTable=!state.plzTable; renderMaps(); };
+  document.getElementById('plzChip').onclick=()=>{ state.plz=''; render(); };
 
   const ls=document.getElementById('langSel');
   ls.innerHTML = LANGS.map(([c,n])=>`<option value="${c}">${n}</option>`).join('');
@@ -1324,7 +1381,9 @@ function render(){
   document.getElementById('herk').value=state.herk;
   document.getElementById('region').value=state.region;
   /* Zahl aktiver weiterer Filter an der Lasche — sichtbar auch im eingeklappten Zustand */
-  const nAct=[state.group!=='all', !!state.team, !!state.dest, !!state.herk, !!state.region, arrActive()].filter(Boolean).length;
+  const nAct=[state.group!=='all', !!state.team, !!state.dest, !!state.herk, !!state.region, !!state.plz, arrActive()].filter(Boolean).length;
+  const pc=document.getElementById('plzChip'); pc.hidden=!state.plz;
+  if(state.plz){ pc.textContent=`${t('ctl.plz')}: ${plzLabel(+state.plz)} ✕`; pc.title=t('pz.clear'); }
   const fc=document.getElementById('filterCount'); fc.hidden=!nAct; fc.textContent=nAct;
   [['grp',state.group!=='all'],['team',!!state.team],['dest',!!state.dest],['herk',!!state.herk],['region',!!state.region]]
     .forEach(([id,on])=>document.getElementById(id).classList.toggle('set',on));
@@ -1342,6 +1401,7 @@ function render(){
 
   document.getElementById('mapDest').setAttribute('aria-pressed',String(state.mapMode==='dest'));
   document.getElementById('mapHerk').setAttribute('aria-pressed',String(state.mapMode==='herk'));
+  document.getElementById('mapPlz').setAttribute('aria-pressed',String(state.mapMode==='plz'));
   renderCoverage(); renderFunnel(); renderKPI(); renderMaps(); renderPanels();
   renderHotelDetail(); renderTopHotels();
   renderTrend(); renderTeams(); renderHeat(); renderTable(); renderDefs();
@@ -1429,6 +1489,8 @@ function renderFunnel(){
   const n=[];
   if(CUR.leadNA) n.push(t('nt.leadNA'));
   if(arrActive()) n.push(t('nt.arr',{a:state.arrFrom.toLocaleDateString(LOC),b:state.arrTo.toLocaleDateString(LOC)}));
+  if(state.region && !state.plz) n.push(t('nt.region'));
+  if(state.plz) n.push(t('nt.plz',{g:plzLabel(+state.plz)}));
   if(CUR.leadHistSkipped) n.push(t('nt.leadHistSkipped'));
   if(CUR.leadHistUsed) n.push(t('nt.leadHistUsed'));
   if(CUR.leadPartial) n.push(t('nt.leadPartial'));
@@ -1647,7 +1709,7 @@ function copyTable(){
 /* --- Definitionen --- */
 function renderDefs(){
   const keys=['stichtag','reise','db','teams','leads','leadsall','props','web','bq','fte','ap','py','gj','mpn',
-              'maps','dest','herk','region','hotel','hotelview','rank'];
+              'maps','dest','herk','region','plz','hotel','hotelview','rank'];
   document.getElementById('defs').innerHTML =
     keys.map(k=>`<dt>${t('def.'+k+'.t')}</dt><dd>${t('def.'+k+'.d')}</dd>`).join('');
 }
@@ -1659,17 +1721,22 @@ function renderDefs(){
 const MAP_M = ['book','teams','vk','db','ros','leads','props','pax','nights',
                'uteam','dbteam','mpn','quote2'];
 
+/* skip: eine Dimension oder eine Liste, deren eigener Filter außen vor bleibt */
+const skips = (skip,k) => skip===k || (Array.isArray(skip) && skip.includes(k));
 function bookOKExcept(r, skip){
   if(!arrOK(r[13])) return false;
-  if(skip!=='dest'   && state.dest   && D.dests[r[12]] !== state.dest) return false;
-  if(skip!=='herk'   && state.herk   && D.regs[r[3]]   !== state.herk) return false;
-  if(skip!=='region' && state.region && String(r[11])  !== state.region) return false;
+  if(!skips(skip,'dest')   && state.dest   && D.dests[r[12]] !== state.dest) return false;
+  if(!skips(skip,'herk')   && state.herk   && D.regs[r[3]]   !== state.herk) return false;
+  if(!skips(skip,'region') && state.region && String(r[11])  !== state.region) return false;
+  if(!skips(skip,'plz')    && state.plz    && String(plzOf(r[14])) !== state.plz) return false;
   return true;
 }
 function leadOKExcept(r, skip){
   if(!arrOK(r[8])) return false;
-  if(skip!=='dest' && state.dest && D.dests[r[3]] !== state.dest) return false;
-  if(skip!=='herk' && state.herk && D.regs[r[2]]  !== state.herk) return false;
+  if(!skips(skip,'dest')   && state.dest   && D.dests[r[3]] !== state.dest) return false;
+  if(!skips(skip,'herk')   && state.herk   && D.regs[r[2]]  !== state.herk) return false;
+  if(!skips(skip,'region') && state.region && String(r[10]) !== state.region) return false;
+  if(!skips(skip,'plz')    && state.plz    && String(plzOf(r[9])) !== state.plz) return false;
   return true;
 }
 
@@ -1688,24 +1755,28 @@ function groupBy(kind){
     let key;
     if(kind==='dest')   key = r[12]>=0 ? D.dests[r[12]] : null;
     else if(kind==='herk') key = r[3]>=0 ? D.regs[r[3]] : null;
+    else if(kind==='plz')  key = String(plzOf(r[14]));          // '-1' = ohne PLZ-Gebiet
     else                key = r[11]>=0 ? String(r[11]) : null;
     if(key===null) continue;
     const b=get(key);
     b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
     b.teams+=r[8]; b.pax+=r[9]; b.nights+=r[10]; b.paxn+=r[9]*r[10];
   }
-  if(kind!=='region' && !state.region){
+  {
     for(const r of D.leadDaily){
       if(r[0]<from || r[0]>to) continue;
       if(!TS.has(D.teams[r[1]])) continue;
       if(!leadOKExcept(r,kind)) continue;
-      const idx = kind==='dest' ? r[3] : r[2];
-      if(idx<0) continue;
-      const b=get(kind==='dest' ? D.dests[idx] : D.regs[idx]);
-      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6];
+      let b;
+      if(kind==='plz') b=get(String(plzOf(r[9])));
+      else if(kind==='region'){ if(!(r[10]>=0)) continue; b=get(String(r[10])); }
+      else {
+        const idx = kind==='dest' ? r[3] : r[2];
+        if(idx<0) continue;
+        b=get(kind==='dest' ? D.dests[idx] : D.regs[idx]);
+      }
+      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6]; b.leadsAll+=(r[7]||0);
     }
-  } else {
-    for(const b of out.values()) b.leadNA=true;
   }
   return out;
 }
@@ -1731,16 +1802,24 @@ function drawMap(el,legEl,geoKey,values,labels,metric,selected,onPick){
   const vals=[...values.values()];
   const br=breaks(vals,6);
   let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Karte ${MBY[metric].n}">`;
+  const plz = geoKey==='plz';
+  let selPath='';
   for(const f of g.f){
-    const key = geoKey==='eu' ? f[0] : f[0]+'|'+f[1];
+    const key = geoKey==='dach' ? f[0]+'|'+f[1] : f[0];
     const v = values.has(key) ? values.get(key) : null;
     const nd = v===null;
     const b = binOf(v,br);
-    const name = labels.get(key) || f[geoKey==='eu'?1:2];
+    const name = labels.get(key) || f[geoKey==='dach'?2:1];
     const tip = `${name}\n${MBY[metric].n}: ${nd?t('mp.noOps'):fmtFull(metric,v)}`;
-    svg+=`<path class="geo${nd?' nd':''}${key===selected?' sel':''}" d="${f[f.length-1]}"`
+    if(plz && key===selected) selPath=f[f.length-1];
+    svg+=`<path class="geo${plz?' plz':''}${nd?' nd':''}${key===selected?' sel':''}" d="${f[f.length-1]}"`
        + (nd?'':` fill="var(--m${b})"`)
        + ` data-key="${key}" data-tip="${tip.replace(/"/g,'&quot;')}"><title>${name}</title></path>`;
+  }
+  /* Landesgrenzen über den Gebieten; die Auswahl liegt obenauf, damit ihr Rand sichtbar bleibt */
+  if(plz){
+    for(const l of g.land) svg+=`<path class="land" d="${l[1]}"/>`;
+    if(selPath) svg+=`<path class="geo plz sel" d="${selPath}" style="fill:none;pointer-events:none"/>`;
   }
   svg+=`</svg>`;
   el.innerHTML=svg;
@@ -1762,6 +1841,14 @@ function drawMap(el,legEl,geoKey,values,labels,metric,selected,onPick){
 function renderMaps(){
   const kind = state.mapMode;
   const metric = state.mapMetric;
+  const plzCard=document.getElementById('mapPlzCard'), euCard=document.getElementById('mapEU').closest('.card');
+  plzCard.hidden = kind!=='plz'; euCard.hidden = kind==='plz';
+  if(kind==='plz'){
+    document.getElementById('mapDachCard').hidden=true;
+    document.getElementById('mapGrid').classList.add('solo');
+    renderPlz(metric);
+    return;
+  }
   const gc = groupBy(kind);
   const vals=new Map(), labs=new Map();
   for(const [k,b] of gc){ vals.set(k, metricVal(metric,b)); labs.set(k, cname(k)); }
@@ -1806,7 +1893,128 @@ function renderMaps(){
 
   document.getElementById('mapHint').textContent = kind==='dest'
     ? t('h.mapDest')
-    : t(MBY[metric].nl ? 'h.mapRegionNA' : 'h.mapHerk');
+    : t('h.mapHerk');
+}
+
+/* PLZ-Gebiete: Karte aller Leitregionen in DE, AT, CH und NL, auf Wunsch mit Tabelle.
+   Der PLZ-Filter selbst bleibt beim Einfärben außen vor (wie bei den anderen Karten). */
+const PLZ_COLS = ['leads','props','book','quote2','teams','vk','db'];
+function renderPlz(metric){
+  const gp = groupBy('plz');
+  const vals=new Map(), labs=new Map();
+  for(const [i,b] of gp){
+    if(i==='-1') continue;
+    const k=D.plz[+i]; vals.set(k, metricVal(metric,b)); labs.set(k, plzLabel(+i,true));
+  }
+  const selKey = state.plz!=='' ? D.plz[+state.plz] : null;
+  drawMap(document.getElementById('mapPLZ'), document.getElementById('mapLegPLZ'),
+          'plz', vals, labs, metric, selKey, key=>{
+            const i=D.plz.indexOf(key); if(i<0) return;
+            state.plz = state.plz===String(i) ? '' : String(i); render();
+          });
+  /* Hinweis: Anteil der Anfragen aus DE/AT/CH/NL ohne gültige PLZ im Zeitraum */
+  let all=0, miss=0;
+  {
+    const from=d2i(state.from), to=capTo(d2i(state.to), false); setArr(false);
+    for(const r of D.leadDaily){
+      if(r[0]<from || r[0]>to || !TS.has(D.teams[r[1]])) continue;
+      if(!leadOKExcept(r,['plz','region'])) continue;
+      if(!PLZ_LANDS.includes(D.regs[r[2]])) continue;
+      all+=r[4]; if(plzOf(r[9])<0) miss+=r[4];
+    }
+    ARRWIN=null;
+  }
+  document.getElementById('mapHint').textContent = t('h.mapPlz', {p: all ? nf(miss/all*100,0)+' %' : '—'});
+  document.getElementById('plzOpenAll').hidden = !state.plzTable;
+  const btn=document.getElementById('plzTableBtn');
+  btn.textContent = t(state.plzTable ? 'mp.tableHide' : 'mp.tableShow');
+  btn.setAttribute('aria-pressed', String(state.plzTable));
+  const wrap=document.getElementById('plzTableWrap');
+  wrap.hidden = !state.plzTable;
+  if(state.plzTable) renderPlzTable();
+}
+/* Tabelle: Bundesländer (Kantone, Provinzen) mit ihren PLZ-Gebieten zum Aufklappen.
+   Bundesland der Buchungen = Sales Spalte H (leer: aus der PLZ), der Anfragen und
+   Angebote = aus der Kunden-PLZ. Ein PLZ-Gebiet, das über eine Landesgrenze reicht
+   (z. B. 63 in Hessen und Bayern), erscheint unter beiden mit seinem jeweiligen Anteil.
+   Region- und PLZ-Filter bleiben außen vor, die Auswahl wird markiert. */
+function aggStatePlz(){
+  const from=d2i(state.from), to=capTo(d2i(state.to), false); setArr(false);
+  const out=new Map();
+  const node=(st,pz)=>{
+    let p=out.get(st); if(!p){ p={b:emptyBase(), kids:new Map()}; out.set(st,p); }
+    let k=p.kids.get(pz); if(!k){ k=emptyBase(); p.kids.set(pz,k); }
+    return [p.b,k];
+  };
+  const SK=['region','plz'];
+  for(const r of D.bookings){
+    if(r[0]<from || r[0]>to || !TS.has(D.teams[r[1]]) || !bookOKExcept(r,SK)) continue;
+    for(const b of node(r[11]>=0?String(r[11]):'-1', plzOf(r[14]))){
+      b.book++; b.vk+=r[5]; b.ek+=r[6]; b.db+=r[7];
+      b.teams+=r[8]; b.pax+=r[9]; b.nights+=r[10]; b.paxn+=r[9]*r[10];
+    }
+  }
+  for(const r of D.leadDaily){
+    if(r[0]<from || r[0]>to || !TS.has(D.teams[r[1]]) || !leadOKExcept(r,SK)) continue;
+    for(const b of node(r[10]>=0?String(r[10]):'-1', plzOf(r[9]))){
+      b.leads+=r[4]; b.web+=r[5]; b.props+=r[6]; b.leadsAll+=(r[7]||0);
+    }
+  }
+  ARRWIN=null;
+  return out;
+}
+function regionName(i){
+  const r=D.regions[i]; if(!r) return '';
+  const n=String(r[2]).split(' - ')[1] || r[2];
+  return `${n} <span class="muted">${ISO2[r[0]]||r[0]}</span>`;
+}
+function renderPlzTable(){
+  const agg=aggStatePlz();
+  const {col,dir,child}=state.plzSort;
+  const val=(b)=>{ const o={}; PLZ_COLS.forEach(id=>o[id]=metricVal(id,b)); return o; };
+  const byMetric=(a,b)=>((b.v[col]??-1e18)-(a.v[col]??-1e18))*(dir<0?1:-1);
+  const parents=[...agg].map(([k,p])=>({k, v:val(p.b), kids:[...p.kids].map(([i,b])=>({i, v:val(b)}))}));
+  const nameOf=k=>k==='-1' ? '\uffff' : String(D.regions[+k]?.[2]||'').split(' - ').pop();
+  parents.sort((a,b)=> a.k==='-1' ? 1 : b.k==='-1' ? -1 :
+    col==='area' ? nameOf(a.k).localeCompare(nameOf(b.k),LOC)*(dir<0?-1:1) : byMetric(a,b));
+  const code=i=> i<0 ? 'zz' : D.plz[i];
+  const kidSort=(a,b)=> child==='code' || col==='area'
+    ? code(a.i).localeCompare(code(b.i))*(col==='area'&&dir<0?-1:1) : byMetric(a,b);
+  const th=(c,label)=>`<th data-c="${c}"${c===col?' class="on"':''}>${label}${c===col?(dir<0?' ▼':' ▲'):''}</th>`;
+  let h=`<thead><tr>${th('area',t('pz.area'))}${PLZ_COLS.map(id=>th(id,MBY[id].n)).join('')}</tr></thead><tbody>`;
+  for(const p of parents){
+    const open=state.plzOpen.has(p.k);
+    const sel = p.k!=='-1' && p.k===String(state.region);
+    h+=`<tr class="st${p.k==='-1'?' none':''}${sel?' sel':''}" data-st="${p.k}" aria-expanded="${open}">`+
+       `<td><span class="caret">${open?'▾':'▸'}</span>${p.k==='-1'?t('pz.none'):regionName(+p.k)}</td>`+
+       PLZ_COLS.map(id=>`<td class="num">${fmt(id,p.v[id])}</td>`).join('')+'</tr>';
+    if(!open) continue;
+    for(const c of p.kids.sort(kidSort)){
+      const csel = c.i>=0 && String(c.i)===state.plz;
+      h+=`<tr class="pz${csel?' sel':''}${c.i<0?' nopz':''}"${c.i>=0?` data-i="${c.i}"`:''}><td>${c.i>=0?plzLabel(c.i):t('pz.noPlz')}</td>`+
+         PLZ_COLS.map(id=>`<td class="num">${fmt(id,c.v[id])}</td>`).join('')+'</tr>';
+    }
+  }
+  h+='</tbody>';
+  const el=document.getElementById('plzTable'); el.innerHTML=h;
+  el.querySelectorAll('thead th').forEach(x=>x.onclick=()=>{
+    const c=x.dataset.c;
+    state.plzSort={col:c, dir: state.plzSort.col===c ? -state.plzSort.dir : (c==='area'?1:-1),
+                   child: c==='area' ? 'code' : 'metric'};
+    renderPlzTable();
+  });
+  el.querySelectorAll('tbody tr[data-st]').forEach(tr=>tr.onclick=()=>{
+    const k=tr.dataset.st;
+    if(state.plzOpen.has(k)) state.plzOpen.delete(k); else state.plzOpen.add(k);
+    renderPlzTable();
+  });
+  el.querySelectorAll('tbody tr[data-i]').forEach(tr=>tr.onclick=()=>{
+    state.plz = state.plz===tr.dataset.i ? '' : tr.dataset.i; render();
+  });
+  const all=document.getElementById('plzOpenAll');
+  const allOpen = parents.length && parents.every(p=>state.plzOpen.has(p.k));
+  all.textContent=t(allOpen ? 'pz.collapseAll' : 'pz.expandAll');
+  all.onclick=()=>{ if(allOpen) state.plzOpen.clear(); else parents.forEach(p=>state.plzOpen.add(p.k)); renderPlzTable(); };
 }
 
 /* ============================ Frag das Cockpit ============================ */
@@ -1861,6 +2069,7 @@ async function askRun(q){
   const ctx = {von: state.from? iso(state.from):null, bis: state.to? iso(state.to):null,
                bereich: state.group, team: state.team||null, reiseland: state.dest||null,
                herkunft: state.herk||null, region: state.region||null,
+               plz_gebiet: state.plz!=='' ? D.plz[+state.plz] : null,
                reise_von: state.arrFrom? iso(state.arrFrom):null, reise_bis: state.arrTo? iso(state.arrTo):null};
   try{
     const r = await fetch('api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -1934,7 +2143,7 @@ function aggHotel(from,to,hi,teamFilter,py){
   /* Anfragen/Angebote je Hotel liegen je Team vor. Reiseland = Land des
      Hotels; für Herkunft und Region gibt es keine Hotel-Anfragen. */
   const allTeams = !teamFilter || teamFilter.size===D.teams.length;
-  const leadsOK = !teamFilter || (!state.herk && !state.region &&
+  const leadsOK = !teamFilter || (!state.herk && !state.region && !state.plz &&
                   (!state.dest || D.hotels[hi][2]===state.dest));
   if(leadsOK){
     for(const r of (HLEAD.get(hi)||[])){
@@ -2107,7 +2316,7 @@ function renderTopHotels(){
   const id=state.topMetric||'db';
   const f=d2i(state.from), to=d2i(state.to);
   const teamFilter = hotelFilter();
-  const noLeads = !!(state.herk || state.region);
+  const noLeads = !!(state.herk || state.region || state.plz);
   const cols=noLeads ? ['book','teams','vk','db','ros','dbteam']
                      : ['leads','leadsall','props','book','teams','vk','db','ros','quote2','dbteam'];
   const fv=d2i(shiftYear(state.from,1)), tv=d2i(shiftYear(state.to,1));

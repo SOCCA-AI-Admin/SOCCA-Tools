@@ -17,7 +17,8 @@ outdir = pathlib.Path(sys.argv[2]) if len(sys.argv) > 2 else base / 'web'
 outdir.mkdir(parents=True, exist_ok=True)
 
 tpl = (base / 'dashboard.tpl.html').read_text(encoding='utf-8')
-tpl = tpl.replace('/*__GEO__*/', (base / 'geo' / 'geo.js').read_text(encoding='utf-8'))
+tpl = tpl.replace('/*__GEO__*/', (base / 'geo' / 'geo.js').read_text(encoding='utf-8') + '\n' +
+                  (base / 'geo' / 'geo_plz.js').read_text(encoding='utf-8'))
 tpl = tpl.replace('/*__I18N__*/', (base / 'i18n.js').read_text(encoding='utf-8'))
 tpl = tpl.replace('/*__REPORTS__*/', (base / 'reports.js').read_text(encoding='utf-8'))
 data = data_path.read_text(encoding='utf-8')
