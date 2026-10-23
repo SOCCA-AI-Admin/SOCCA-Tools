@@ -104,8 +104,29 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
 .daterange{display:flex;align-items:center;gap:6px}
 .morefilters select{max-width:170px}
 .morefilters #herk,.morefilters #region,.morefilters #dreg,.morefilters #dest{max-width:200px;min-width:186px}
-/* zwei Reihen: Ziel (Bereich, Team, Reiseland, Reiseregion) und Kunde (Herkunft, Reisezeitraum) */
-.morefilters .brk{flex-basis:100%;height:0}
+/* Breite Bildschirme: alle Filter in einer Zeile, Felder teilen sich die Breite */
+@media (min-width:1100px){
+  .morefilters .inner{flex-wrap:nowrap;column-gap:8px}
+  .morefilters .field{flex:1 1 0;min-width:0}
+  .morefilters .field>label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.08em}
+  .morefilters select,.morefilters #herk,.morefilters #region,.morefilters #dreg,.morefilters #dest{
+    width:100%;min-width:0;max-width:none;font-size:13px;padding:7px 4px 7px 7px}
+  .morefilters #team{min-width:0}
+  .morefilters .field:has(#grp){flex-grow:1}
+  .morefilters .field:has(#team){flex-grow:.92}
+  .morefilters .field:has(#dest){flex-grow:1.1}
+  .morefilters .field:has(#dreg){flex-grow:1.3}
+  .morefilters .field:has(#herk){flex-grow:1.4}
+  .morefilters .field:has(#region){flex-grow:1.45}
+  .morefilters #grpArr{flex:none}
+  .morefilters input[type=date]{width:118px;font-size:13px;padding:7px 4px}
+  .morefilters .resetbtn,.morefilters .plzchip{flex:none;white-space:nowrap;font-size:12px;padding:6px 9px}
+}
+@media (min-width:1100px) and (max-width:1399px){
+  .morefilters select,.morefilters #herk,.morefilters #region,.morefilters #dreg,.morefilters #dest,
+  .morefilters input[type=date]{font-size:12px}
+  .morefilters input[type=date]{width:108px}
+}
 .morefilters .inner{column-gap:var(--s-4)}
 .morefilters input[type=date]{width:140px}
 #arrClear{padding:4px 8px;line-height:1}
@@ -528,7 +549,6 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
           <label for="dreg" data-i18n="ctl.dreg"></label>
           <select id="dreg"></select>
         </div>
-        <div class="brk" aria-hidden="true"></div>
         <div class="field">
           <label for="herk" data-i18n="ctl.herk"></label>
           <select id="herk"></select>
