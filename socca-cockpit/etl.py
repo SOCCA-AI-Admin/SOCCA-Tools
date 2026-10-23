@@ -24,6 +24,7 @@ Definitionen (gegen das Blatt "Report" verifiziert):
   Geschaeftsjahr  Juli bis Juni (AP-Logik)
 """
 import sys, os, re, json, csv, datetime, math, bisect
+import reiseregion
 from collections import defaultdict
 
 EPOCH = datetime.date(1899, 12, 30)
@@ -389,6 +390,7 @@ def read_workbook(path):
             land=text(d.get(1)) or '',
             exkl=1 if text(d.get(7)) else 0,
             seit=monthidx(seit) if seit else None,
+            region_raw=text(d.get(40)),          # Spalte AO: Reiseregion des Hotels
         )
     out['hotels'] = hotels
 
@@ -532,7 +534,7 @@ def read_combit(path):
                 hk = key + (wid,)
                 hp = hotel_anfragen.get(hk)
                 if hp is None or a < hp[0]:
-                    hotel_anfragen[hk] = (a, web, st)
+                    hotel_anfragen[hk] = (a, web, st, herk, ziel, plz, rg)
         elif art == 'Angebot':
             o = as_date(row.get('AngebotVersandtDatum'))
             if o is None or o.year < 2010:
@@ -549,7 +551,7 @@ def read_combit(path):
             r = by_team[(dayidx(a), team, herk, ziel, st, plz, rg)]
             r[0] += 1
             r[1] += 1 if web else 0
-    for (_, team, _, wid), (a, web, st) in hotel_anfragen.items():
+    for (_, team, _, wid), (a, web, st, *_) in hotel_anfragen.items():
         r = by_hotel[(dayidx(a), wid, team, st)]; r[0] += 1; r[1] += 1 if web else 0
     for o, team, wid, herk, ziel, st, plz, rg in angebote:
         if team:
@@ -562,7 +564,8 @@ def read_combit(path):
             by_team[(dayidx(a), team, herk, ziel, st, plz, rg)][3] += 1
         if wid:
             by_hotel[(dayidx(a), wid, team, st)][3] += 1
-    return by_team, by_hotel
+    raw = dict(hotel_anfragen=hotel_anfragen, angebote=angebote, alle=alle)
+    return by_team, by_hotel, raw
 
 
 # ------------------------------------------------------------ AP-Leads
@@ -652,7 +655,7 @@ def compute_ap_leads(wbd, by_team, cut, excel_compat=AP_LEADS_WIE_EXCEL):
 # --------------------------------------------------------------- Aufbau
 def build(xl, combit_path, outpath, ap_leads_path=None):
     wbd = read_workbook(xl)
-    by_team, by_hotel = read_combit(combit_path)
+    by_team, by_hotel, craw = read_combit(combit_path)
 
     teams = sorted({b['team'] for b in wbd['bookings'] if b['team']} |
                    {k[1] for k in by_team})
@@ -668,10 +671,16 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
                                                  exkl=0, seit=None))
     hid = sorted(set(master) | seen)
     hotels, hix = [], {}
+    meta_h = {h: (master.get(h) or fallback.get(h) or dict(name=f'WebID {h}', land='', exkl=0, seit=None))
+              for h in hid}
+    # Reiseregion je Hotel: Locations Spalte AO, fehlt sie, aus dem Ort im Namen
+    dregions, hreg, inferred, rproblems = reiseregion.assign(
+        {h: dict(name=m['name'], land=m['land'], region_raw=m.get('region_raw')) for h, m in meta_h.items()})
     for i, h in enumerate(hid):
-        m = master.get(h) or fallback.get(h) or dict(name=f'WebID {h}', land='', exkl=0, seit=None)
+        m = meta_h[h]
         hix[h] = i
-        hotels.append([h, m['name'], m['land'], m['exkl'], m['seit']])
+        # [WebID, Name, Land, exklusiv, im Verkauf seit, Reiseregion (Index in dregions), erschlossen]
+        hotels.append([h, m['name'], m['land'], m['exkl'], m['seit'], hreg.get(h, -1), 1 if h in inferred else 0])
 
     sports = sorted({b['sport'] for b in wbd['bookings'] if b['sport']})
     # Nach Haeufigkeit sortieren - D, A, CH stehen sonst zwischen Codes,
@@ -734,6 +743,36 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     # leadHotel: [Tag, Hotel, Team (-1 = ohne Team), Anfragen, Web, Angebote, alle Anfragen, Anreisetag]
     lead_hotel = sorted([[d, hix[h], tix.get(t, -1), *v, st] for (d, h, t, st), v in by_hotel.items() if h in hix])
 
+    # Anfragen und Angebote je Reiseregion (Region des angefragten bzw. angebotenen Hotels).
+    # Unique Anfragen: ein Kunde einmal je Sales-Team, AP-Jahr und Region (frueheste Anfrage
+    # dort) - wer in zwei Regionen anfragt, zaehlt in beiden. Reiseland = Land der Region.
+    by_reg = defaultdict(lambda: [0, 0, 0, 0])
+    first = {}
+    for (mail, team, ap, wid), (a, web, st, herk, ziel, plz, rg) in craw['hotel_anfragen'].items():
+        g = hreg.get(wid, -1)
+        if g < 0 or not team:
+            continue
+        k = (mail, team, ap, g)
+        if k not in first or a < first[k][0]:
+            first[k] = (a, web, st, herk, plz, rg)
+    for (_, team, _, g), (a, web, st, herk, plz, rg) in first.items():
+        r = by_reg[(dayidx(a), team, herk, g, st, plz, rg)]
+        r[0] += 1
+        r[1] += 1 if web else 0
+    for o, team, wid, herk, ziel, st, plz, rg in craw['angebote']:
+        g = hreg.get(wid, -1)
+        if team and g >= 0:
+            by_reg[(dayidx(o), team, herk, g, st, plz, rg)][2] += 1
+    for a, team, wid, herk, ziel, st, plz, rg in craw['alle']:
+        g = hreg.get(wid, -1)
+        if team and g >= 0:
+            by_reg[(dayidx(a), team, herk, g, st, plz, rg)][3] += 1
+    # leadRegion: [Tag, Team, Herkunft, Reiseland, Reiseregion, Anfragen unique, Web, Angebote,
+    #              alle Anfragen, Anreisetag, PLZ-Gebiet, Herkunftsregion]
+    lead_region = sorted([[d, tix[t], rix.get(h, -1), dix.get(dregions[g][0], -1), g, *v, st,
+                           pix.get(p, -1), gix.get((h, rg), -1)]
+                          for (d, t, h, g, st, p, rg), v in by_reg.items() if t in tix])
+
     def mrows(series, cut=None):
         out = []
         for mi, vals in series:
@@ -762,6 +801,8 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
         teams=teams, sports=sports, regs=regs, dests=dests,
         regions=regions, countries=COUNTRY, hotels=hotels, plz=plzs,
         bookings=bookings,
+        dregions=dregions,
+        leadRegion=lead_region,
         leadDaily=lead_team,
         leadHotel=lead_hotel,
         leadMonthly=mrows(wbd['leads_hist'], cut),
@@ -785,6 +826,23 @@ def build(xl, combit_path, outpath, ap_leads_path=None):
     nr = sum(r[4] for r in lead_team if r[10] >= 0)
     print(f'PLZ-Gebiete      {len(plzs)} | Buchungen mit PLZ {nb} | Anfragen mit PLZ {nl}, mit Bundesland {nr} von {nla}')
     print(f'Leads je Team    {len(lead_team)} Zeilen')
+    nh = sum(1 for h in hotels if h[5] >= 0)
+    print(f'Reiseregionen    {len(dregions)} | Hotels mit Region {nh} von {len(hotels)}, davon aus dem Ort '
+          f'erschlossen {len(inferred)} | {len(lead_region)} Zeilen je Region')
+    for p_ in rproblems:
+        print(f'  Hinweis Region: {p_}')
+    # Erschlossene und fehlende Regionen zum Nachpflegen in Spalte AO
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(outpath)), 'reiseregionen_pruefen.csv'),
+                  'w', encoding='utf-8-sig', newline='') as f_:
+            w_ = csv.writer(f_, delimiter=';')
+            w_.writerow(['WebID', 'Land', 'Destination', 'Region (erschlossen)', 'Ort'])
+            for h in hotels:
+                if h[6] or h[5] < 0:
+                    w_.writerow([h[0], h[2], h[1], dregions[h[5]][1] if h[5] >= 0 else '',
+                                 inferred.get(h[0]) or ''])
+    except OSError:
+        pass
     print(f'Leads je Hotel   {len(lead_hotel)} Zeilen')
     print(f'FTE              {len(data["fte"])} Zeilen')
     print(f'Annual Planning  {len(data["ap"])} Zeilen')

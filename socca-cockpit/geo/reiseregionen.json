@@ -1,0 +1,257 @@
+{
+ "_quelle": "SOCCA-Regionen aus Combit (RECID_Land_Länder_GUID), Anzeigenamen mit Umlauten; Liste fuer Locations Spalte AO",
+ "regionen": {
+  "A": [
+   "Burgenland",
+   "Kärnten",
+   "Niederösterreich",
+   "Oberösterreich",
+   "Salzburg",
+   "Steiermark",
+   "Tirol",
+   "Vorarlberg",
+   "Wien"
+  ],
+  "AE": [
+   "Abu Dhabi",
+   "Dubai",
+   "Ras al-Khaimah"
+  ],
+  "CH": [
+   "Deutschschweiz",
+   "Tessin",
+   "Westschweiz"
+  ],
+  "CY": [
+   "Famagusta",
+   "Geroskipou",
+   "Larnaca",
+   "Limassol",
+   "Nikosia",
+   "Paphos"
+  ],
+  "CZ": [
+   "Hradec Kralove",
+   "Karlsbad",
+   "Königgrätz",
+   "Mittelböhmen",
+   "Nordböhmen-Aussig",
+   "Pilsen",
+   "Prag",
+   "Region Mährisch-Schlesien",
+   "Region Pardubitze",
+   "Region Reichenberg",
+   "Region Zlin",
+   "Südböhmen",
+   "Südmähren"
+  ],
+  "D": [
+   "Baden-Württemberg",
+   "Bayern",
+   "Berlin",
+   "Brandenburg",
+   "Bremen",
+   "Hamburg",
+   "Hessen",
+   "Mecklenburg-Vorpommern",
+   "Niedersachsen",
+   "Nordrhein-Westfalen",
+   "Rheinland-Pfalz",
+   "Saarland",
+   "Sachsen",
+   "Sachsen-Anhalt",
+   "Schleswig-Holstein",
+   "Thüringen"
+  ],
+  "DK": [
+   "Süddänemark"
+  ],
+  "EG": [
+   "Hurghada",
+   "Marsa Alam",
+   "Sharm el-Sheikh"
+  ],
+  "ES": [
+   "Alicante",
+   "Andalusien",
+   "Cadiz",
+   "Kanarische Inseln",
+   "Kastilien",
+   "Katalonien",
+   "Madrid",
+   "Malaga",
+   "Mallorca",
+   "Murcia",
+   "Valencia"
+  ],
+  "GR": [
+   "Athen",
+   "Chalkidiki",
+   "Korinthia",
+   "Kreta",
+   "Makedonien",
+   "Nordägäische Inseln",
+   "Thrakien"
+  ],
+  "HR": [
+   "Dalmatien",
+   "Istrien",
+   "Kvarner-Bucht",
+   "Nordkroatien",
+   "Zagreb und Umgebung"
+  ],
+  "HU": [
+   "Budapest",
+   "Nordungarn",
+   "Plattensee",
+   "Südliches Ungarn",
+   "Westungarn"
+  ],
+  "I": [
+   "Adria",
+   "Emilia-Romagna",
+   "Gardasee",
+   "Italienische Riviera",
+   "Kampanien",
+   "Lago Maggiore",
+   "Lombardei",
+   "Obere Adria",
+   "Piemont",
+   "Rom",
+   "Sardinien",
+   "Sizilien",
+   "Südtirol",
+   "Toskana",
+   "Trentino"
+  ],
+  "MT": [
+   "Kappara",
+   "St. Julian's",
+   "St. Paul's Bay"
+  ],
+  "NL": [
+   "Drenthe",
+   "Gelderland",
+   "Holland",
+   "Limburg",
+   "Nordbrabant",
+   "Südholland",
+   "Utrecht"
+  ],
+  "PL": [
+   "Kujawien-Pommern",
+   "Lodz",
+   "Masuren",
+   "Polnische Ostsee",
+   "Westliches Polen"
+  ],
+  "PT": [
+   "Alentejo",
+   "Algarve",
+   "Lissabon"
+  ],
+  "SE": [
+   "Uppland"
+  ],
+  "SI": [
+   "Drava-Podravska",
+   "Koroska",
+   "Posavje",
+   "Prekmurje-Mura",
+   "Slowenisch-Kärnten",
+   "Slowenische Riviera",
+   "Zentral-Slowenien"
+  ],
+  "SK": [
+   "Bratislava",
+   "Nitra",
+   "Trnava"
+  ],
+  "TN": [
+   "Djerba",
+   "Sousse",
+   "Tunis"
+  ],
+  "TR": [
+   "Alanya",
+   "Antalya",
+   "Belek",
+   "Erzurum",
+   "Izmir",
+   "Kemer",
+   "Lara",
+   "Side"
+  ]
+ },
+ "lage": {
+  "CZ|Prag": [
+   14.42,
+   50.08
+  ],
+  "I|Rom": [
+   12.5,
+   41.9
+  ],
+  "CY|Nikosia": [
+   33.36,
+   35.17
+  ],
+  "GR|Kreta": [
+   24.9,
+   35.25
+  ],
+  "GR|Thrakien": [
+   25.4,
+   41.1
+  ],
+  "MT|St. Paul's Bay": [
+   14.4,
+   35.95
+  ],
+  "PL|Polnische Ostsee": [
+   16.5,
+   54.4
+  ],
+  "A|Wien": [
+   16.37,
+   48.21
+  ],
+  "D|Berlin": [
+   13.4,
+   52.52
+  ],
+  "D|Hamburg": [
+   9.99,
+   53.55
+  ],
+  "D|Bremen": [
+   8.8,
+   53.08
+  ],
+  "HU|Budapest": [
+   19.04,
+   47.5
+  ],
+  "ES|Madrid": [
+   -3.7,
+   40.42
+  ],
+  "PT|Lissabon": [
+   -9.14,
+   38.72
+  ],
+  "GR|Athen": [
+   23.73,
+   37.98
+  ],
+  "MT|Kappara": [
+   14.47,
+   35.91
+  ],
+  "SI|Posavje": [
+   15.55,
+   45.95
+  ]
+ },
+ "_lage": "Ersatzlage fuer Regionen ohne Hotel mit bekanntem Ort (Laenge, Breite)"
+}

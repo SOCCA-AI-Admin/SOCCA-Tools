@@ -70,7 +70,7 @@ AP_METRICS = {'ap_teams', 'ap_delta', 'ap_pct'}
 APL_METRICS = {'ap_leads', 'ap_leads_delta', 'ap_leads_pct'}
 
 GROUP_BY = ['none', 'team', 'team_group', 'month', 'quarter', 'calendar_year', 'fiscal_year',
-            'destination', 'origin_country', 'region', 'plz_region', 'hotel', 'sport']
+            'destination', 'destination_region', 'origin_country', 'region', 'plz_region', 'hotel', 'sport']
 TIME_GROUPS = {'month', 'quarter', 'calendar_year', 'fiscal_year'}
 
 ALIASES = {'DE': 'D', 'AT': 'A', 'IT': 'I', 'GER': 'D', 'AUT': 'A', 'ITA': 'I'}
@@ -150,6 +150,12 @@ class Cockpit:
             self.last_day = max(r[0] for r in D['bookings'])
             self.last_lead_day = max((r[0] for r in D['leadDaily']), default=None)
             self.plz_name = plz_names()
+            # Reiseregionen: Region je Hotel (hotels Spalte 5); Anfragen/Angebote je Region in
+            # leadRegion, hier auf den Aufbau von leadDaily gebracht (Region in Spalte 11)
+            self.dregions = D.get('dregions', [])
+            self.hotel_dreg = [h[5] if len(h) > 5 else -1 for h in D['hotels']]
+            self.lead_region = [[r[0], r[1], r[2], r[3], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[4]]
+                                for r in D.get('leadRegion', [])]
             # PLZ-Gebiete ohne Kartenfläche (Tippfehler wie D-05) gelten als ohne PLZ
             self.plz_ok = {i for i, k in enumerate(D.get('plz', [])) if not self.plz_name or k in self.plz_name}
 
@@ -179,6 +185,7 @@ class Cockpit:
                 'Angebote werden je Angebotszeile gezählt, datiert auf das Versanddatum.',
                 'Buchungsquote (quote2) = Buchungen / Unique Anfragen; Abschlussquote (quote3) = Buchungen / Angebote. Den Begriff „Buchungsrate“ gibt es nicht mehr.',
                 'Region = Bundesland/Kanton/Provinz des Kunden. Buchungen: Sales Spalte H (leer: aus der PLZ). Anfragen/Angebote: aus der Kunden-PLZ in C_AP, nur für D, A, CH, NL und nur mit gültiger PLZ (vor Mitte 2025 fehlt sie bei rund einem Viertel). Für Sportarten gibt es keine Anfragen/Angebote.',
+                'Reiseregion (destination_region) = Region des Hotels aus Locations Spalte AO (z. B. Salzburg, Gardasee, Istrien), fehlend aus dem Ort im Hotelnamen erschlossen. Buchungen nach gebuchtem Hotel, Angebote nach angebotenem Hotel, Unique Anfragen einmal je Kunde, Team, AP-Jahr und Region — wer in zwei Regionen anfragt, zählt in beiden. Filter filters.destination_regions (Namen), Gruppierung group_by=destination_region. Nicht verwechseln mit region = Herkunftsregion (Bundesland des Kunden).',
                 'PLZ-Gebiet = erste zwei Ziffern der Kunden-PLZ (Leitregion), nur für Kunden aus D, A, CH und NL; Buchungen aus Sales (Spalte X), Anfragen/Angebote aus C_AP. Filter filters.plz_regions (z. B. "DE-80" oder "80"), Gruppierung group_by=plz_region. Bei Anfragen ist die PLZ erst ab Mitte 2025 verlässlich gepflegt (über 90 %), davor fehlt sie bei rund einem Viertel — Vorjahresvergleiche mit PLZ sind deshalb nach unten verzerrt. Die volle PLZ gibt es bewusst nicht.',
                 'Anfragen und Angebote je Hotel gibt es je Team und je Reiseland (= Land des Hotels), aber nicht je Herkunftsland, Region, PLZ-Gebiet oder Sportart.',
                 'FTE und Annual Planning (Teams und Anfragen) gibt es nur je Team bzw. gesamt, nicht je Land, Region, Hotel oder Sportart. AP-Anfragen je Monat = AP-Teams des Folgemonats / Quote des Folgemonats im Vorjahr (Teams ÷ Unique Anfragen des Vormonats); ist im Blatt AP eine BuQ von Hand eingetragen, gilt diese.',
@@ -187,6 +194,8 @@ class Cockpit:
             'team_groups': {k: v[0] for k, v in TEAM_GROUPS.items()},
             'destinations': {c: D['countries'].get(c, c) for c in D['dests']},
             'origin_countries': {c: D['countries'].get(c, c) for c in D['regs']},
+            'destination_regions': {land: sorted(r[1] for r in self.dregions if r[0] == land)
+                                    for land in sorted({r[0] for r in self.dregions})},
             'sports': D['sports'],
             'metrics': {k: v[0] for k, v in METRICS.items()},
             'group_by': GROUP_BY,
@@ -247,6 +256,24 @@ class Cockpit:
                    if s == r[1].lower() or s == r[2].lower() or s in r[2].lower()}
             if not hit:
                 raise ValueError(f'Unbekannte Region: {v}')
+            out |= hit
+        return out
+
+    def _dregs(self, vals):
+        """Reiseregionen nach Name, z. B. "Salzburg" oder "Gardasee"; "Tirol (A)" grenzt das Land ein."""
+        if not vals:
+            return None
+        out = set()
+        for v in vals:
+            s = str(v).strip()
+            m = re.fullmatch(r'(.+?)\s*\(([A-Za-z]{1,3})\)', s)
+            name, land = (m.group(1), ALIASES.get(m.group(2).upper(), m.group(2).upper())) if m else (s, None)
+            k = name.lower()
+            hit = {i for i, r in enumerate(self.dregions) if (not land or r[0] == land) and r[1].lower() == k}
+            if not hit:
+                hit = {i for i, r in enumerate(self.dregions) if (not land or r[0] == land) and k in r[1].lower()}
+            if not hit:
+                raise ValueError(f'Unbekannte Reiseregion: {v}. Liste in get_overview unter destination_regions.')
             out |= hit
         return out
 
@@ -316,6 +343,7 @@ class Cockpit:
             herk=self._norm_countries(filters.get('origin_countries'), set(self.D['regs'])),
             region=self._regions(filters.get('regions')),
             plz=self._plz(filters.get('plz_regions')),
+            dreg=self._dregs(filters.get('destination_regions')),
             hotel=self._hotels(filters.get('hotels')),
             sport=({str(s).upper() for s in filters['sports']} if filters.get('sports') else None),
             arr=self._arrival(filters.get('arrival_from'), filters.get('arrival_to')),
@@ -363,9 +391,9 @@ class Cockpit:
             notes.append('Anfragen je Hotel: jede Anfrage zählt bei jedem angefragten Hotel; die Summe über Hotels ist größer als die unique Anfragen.')
         for m in metrics:
             if m in FTE_METRICS | AP_METRICS | APL_METRICS and (spec['dest'] or spec['herk'] or spec['region']
-                                                   or spec['plz'] or spec['hotel'] or spec['sport']
-                                                   or group_by in ('destination', 'origin_country', 'region',
-                                                                   'plz_region', 'hotel', 'sport')):
+                                                   or spec['plz'] or spec['dreg'] or spec['hotel'] or spec['sport']
+                                                   or group_by in ('destination', 'destination_region', 'origin_country',
+                                                                   'region', 'plz_region', 'hotel', 'sport')):
                 notes.append(f'{m}: FTE/Plan gibt es nur je Team oder gesamt — hier leer.')
                 break
         return {
@@ -389,6 +417,9 @@ class Cockpit:
         if g == 'region':
             r = self.D['regions'][key] if isinstance(key, int) and key >= 0 else None
             return f'{r[2]} ({r[0]})' if r else 'ohne Region'
+        if g == 'destination_region':
+            r = self.dregions[key] if isinstance(key, int) and 0 <= key < len(self.dregions) else None
+            return f'{r[1]} ({r[0]})' if r else 'ohne Reiseregion'
         if g == 'plz_region':
             if not isinstance(key, int) or key < 0:
                 return 'ohne PLZ-Gebiet (andere Länder oder ohne gültige PLZ)'
@@ -418,10 +449,15 @@ class Cockpit:
             return r[11]
         if g == 'plz_region':
             return self._plz_of(r, 14)
+        if g == 'destination_region':
+            return self._hreg(r[4])
         if g == 'hotel':
             return r[4]
         if g == 'sport':
             return self._at(D['sports'], r[2])
+
+    def _hreg(self, hi):
+        return self.hotel_dreg[hi] if hi is not None and 0 <= hi < len(self.hotel_dreg) else -1
 
     def _plz_of(self, r, i):
         v = r[i] if len(r) > i else -1
@@ -470,6 +506,8 @@ class Cockpit:
                 continue
             if spec['plz'] and self._plz_of(r, 14) not in spec['plz']:
                 continue
+            if spec['dreg'] and self._hreg(r[4]) not in spec['dreg']:
+                continue
             if spec['hotel'] and r[4] not in spec['hotel']:
                 continue
             if spec['sport'] and self._at(D['sports'], r[2]) not in spec['sport']:
@@ -501,6 +539,8 @@ class Cockpit:
                     continue
                 if spec['hotel'] and r[1] not in spec['hotel']:
                     continue
+                if spec['dreg'] and self._hreg(r[1]) not in spec['dreg']:
+                    continue
                 if not arr_ok(r[7] if len(r) > 7 else None):
                     continue
                 land = self.hotel_by_idx[r[1]][2]
@@ -518,6 +558,8 @@ class Cockpit:
                     key = self._group_of(team) if team else 'other'
                 elif g == 'destination':
                     key = land
+                elif g == 'destination_region':
+                    key = self._hreg(r[1])
                 elif g in TIME_GROUPS:
                     key = bucket_of(d, g)
                 else:
@@ -530,8 +572,11 @@ class Cockpit:
             if spec['dest']:
                 notes.append('Anfragen/Angebote je Hotel: Reiseland = Land des Hotels.')
         else:
-            for r in D['leadDaily']:
+            use_reg = bool(spec['dreg'] or g == 'destination_region')
+            for r in (self.lead_region if use_reg else D['leadDaily']):
                 if r[0] < fi or r[0] > ti:
+                    continue
+                if spec['dreg'] and r[11] not in spec['dreg']:
                     continue
                 team = self._at(D['teams'], r[1])
                 if team not in spec['teams']:
@@ -559,6 +604,8 @@ class Cockpit:
                     key = self._plz_of(r, 9)
                 elif g == 'region':
                     key = r[10] if len(r) > 10 else -1
+                elif g == 'destination_region':
+                    key = r[11]
                 elif g in TIME_GROUPS:
                     key = bucket_of(d, g)
                 else:
@@ -571,8 +618,8 @@ class Cockpit:
             if mf < LEAD_CUT_M:
                 if arr:
                     notes.append('Anfragen vor 2024 haben kein Anreisedatum — mit Reisezeitraum fehlen sie.')
-                elif spec['dest'] or spec['herk'] or spec['plz'] or spec['region'] or g in (
-                        'destination', 'origin_country', 'plz_region', 'region'):
+                elif spec['dest'] or spec['herk'] or spec['plz'] or spec['region'] or spec['dreg'] or g in (
+                        'destination', 'destination_region', 'origin_country', 'plz_region', 'region'):
                     notes.append('Anfragen vor 2024 gibt es nur je Team, nicht je Land — für diesen Teil fehlen sie.')
                 else:
                     full_from = mf if f.day == 1 else mf + 1
@@ -604,7 +651,8 @@ class Cockpit:
             notes.append('Anfragen gesamt gibt es erst ab 01.01.2024.')
 
         # ---- FTE und Annual Planning (nur je Team, Teamgruppe, Zeit, gesamt)
-        dim = spec['dest'] or spec['herk'] or spec['region'] or spec['plz'] or spec['hotel'] or spec['sport'] or arr
+        dim = (spec['dest'] or spec['herk'] or spec['region'] or spec['plz'] or spec['dreg'] or spec['hotel']
+               or spec['sport'] or arr)
         if arr:
             notes.append('Mit Reisezeitraum gibt es kein Annual Planning und keine FTE — beide gelten je Buchungsmonat.')
 

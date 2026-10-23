@@ -666,6 +666,9 @@ greift dann Deutsch.
 | `i18n/make_i18n.py` | Erzeugt `i18n.js` neu — hier werden Übersetzungen geändert |
 | `geo/make_geo.py` | Erzeugt `geo.js` neu, falls der Kartenausschnitt geändert wird |
 | `geo/geo_plz.js` | Karte der PLZ-Gebiete (DE, AT, CH, NL), fertig gebaut |
+| `reiseregion.py` | Reiseregion je Hotel (Spalte AO, sonst aus dem Ort erschlossen) und Kreismittelpunkte |
+| `geo/reiseregionen.json` | SOCCA-Reiseregionen je Land mit Anzeigenamen, Ersatzlagen für Kreise |
+| `geo/orte.tsv.gz` | Ortsverzeichnis (GeoNames) zum Erschließen der Region, erzeugt von `geo/make_orte.py` |
 | `geo/plz_bundesland.json` | Volle PLZ → Bundesland/Kanton/Provinz, liest `etl.py` (bleibt auf dem Server) |
 | `geo/make_plz_geo.py` | Erzeugt `geo_plz.js` neu — nur nötig, wenn sich die Gebiete ändern sollen; Quellen und Lizenzen stehen im Kopf der Datei |
 | `update.sh` | Der Wächter: prüft auf Änderung, baut, protokolliert |
@@ -705,6 +708,24 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   steht in `geo/plz_bundesland.json` (aus GeoNames, erzeugt von
   `geo/make_plz_geo.py`); fehlt eine PLZ dort, gilt die nächste bekannte PLZ
   derselben Leitregion. Ohne gültige PLZ fehlt eine Anfrage im Bundesland.
+- **Reiseregion** = Region des Hotels aus Spalte AO im Blatt `Locations`
+  (z. B. Salzburg, Gardasee, Istrien), Anzeigenamen und gültige Werte je Land
+  aus `geo/reiseregionen.json` (SOCCA-Regionen aus Combit). Schreibweisen wie
+  „Kaernten“ und „Kärnten“ gelten als gleich. Ist AO leer, passt die Region
+  nicht zum Land des Hotels oder steht dort etwas anderes (z. B. ein
+  Anreisehinweis), erschließt `reiseregion.py` die Region aus dem Ort am Anfang
+  des Hotelnamens (bei SOCCACUPs irgendwo im Namen): gleiche Region wie andere
+  Hotels im selben Ort, sonst wie die nächstgelegenen gepflegten Hotels im
+  selben Land (Ortslagen aus `geo/orte.tsv.gz`, GeoNames). Jeder Lauf schreibt
+  die erschlossenen und weiterhin fehlenden Hotels nach
+  `.state/reiseregionen_pruefen.csv` — zum Nachpflegen in Spalte AO; Hinweise
+  stehen außerdem im Log. Buchungen zählen nach gebuchtem Hotel, Angebote nach
+  angebotenem Hotel, Unique Anfragen einmal je Kunde, Sales-Team, AP-Jahr und
+  Region (wer in zwei Regionen anfragt, zählt in beiden). Filter *Reiseregion*
+  hinter *Reiseland*, Karte *Reiseregion* mit Kreisen (Median der Hotelorte,
+  mit gewähltem Reiseland herangezoomt), Spalte in der Hotel-Rangliste,
+  in „Frag das Cockpit“ `destination_regions` bzw. `destination_region`.
+  Der frühere Filter *Region* heißt jetzt **Herkunftsregion**.
 - **PLZ-Gebiet** = die ersten zwei Ziffern der Kunden-PLZ (Leitregion), für
   Kunden aus Deutschland, Österreich, der Schweiz und den Niederlanden.
   Buchungen aus Sales Spalte X, Anfragen und Angebote aus der Spalte `PLZ` in

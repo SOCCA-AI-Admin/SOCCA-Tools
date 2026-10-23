@@ -92,7 +92,10 @@ add('ctl.dest', 'Reiseland', 'Bestemming', 'País de destino', 'Paese di destina
     'Odredišna zemlja', 'Cílová země', 'Reiseland', 'Varış ülkesi', 'Célország')
 add('ctl.herk', 'Kundenherkunft', 'Herkomst klant', 'Origen del cliente', 'Provenienza cliente',
     'Podrijetlo klijenta', 'Původ zákazníka', 'Kundens opprinnelse', 'Müşteri kaynağı', 'Ügyfél származása')
-add('ctl.region', 'Region', 'Regio', 'Región', 'Regione', 'Regija', 'Region', 'Region', 'Bölge', 'Régió')
+add('ctl.region', 'Herkunftsregion', 'Herkomstregio', 'Región de origen', 'Regione di provenienza', 'Regija podrijetla',
+    'Region původu', 'Opprinnelsesregion', 'Köken bölgesi', 'Származási régió')
+add('ctl.dreg', 'Reiseregion', 'Reisregio', 'Región de destino', 'Regione di destinazione', 'Odredišna regija',
+    'Cílový region', 'Reiseregion', 'Varış bölgesi', 'Célrégió')
 add('ctl.compare', 'Vergleich', 'Vergelijking', 'Comparación', 'Confronto',
     'Usporedba', 'Srovnání', 'Sammenligning', 'Karşılaştırma', 'Összehasonlítás')
 add('ctl.py', 'Vorjahr', 'Vorig jaar', 'Año anterior', 'Anno precedente',
@@ -119,8 +122,10 @@ add('all.dests', 'Alle Reiseländer', 'Alle bestemmingen', 'Todos los destinos',
 add('all.herks', 'Alle Herkunftsländer', 'Alle herkomstlanden', 'Todos los países de origen',
     'Tutti i paesi di provenienza', 'Sve zemlje podrijetla', 'Všechny země původu',
     'Alle opprinnelsesland', 'Tüm kaynak ülkeler', 'Minden származási ország')
-add('all.regions', 'Alle Regionen', 'Alle regio’s', 'Todas las regiones', 'Tutte le regioni',
-    'Sve regije', 'Všechny regiony', 'Alle regioner', 'Tüm bölgeler', 'Minden régió')
+add('all.regions', 'Alle Herkunftsregionen', 'Alle herkomstregio’s', 'Todas las regiones de origen', 'Tutte le regioni di provenienza',
+    'Sve regije podrijetla', 'Všechny regiony původu', 'Alle opprinnelsesregioner', 'Tüm köken bölgeleri', 'Minden származási régió')
+add('all.dregs', 'Alle Reiseregionen', 'Alle reisregio’s', 'Todas las regiones de destino', 'Tutte le regioni di destinazione',
+    'Sve odredišne regije', 'Všechny cílové regiony', 'Alle reiseregioner', 'Tüm varış bölgeleri', 'Minden célrégió')
 
 add('grp.futl', 'Fußball Trainingslager', 'Voetbal trainingskamp', 'Fútbol — campos de entrenamiento',
     'Calcio — ritiri', 'Nogomet — pripreme', 'Fotbal — soustředění', 'Fotball treningsleir',
@@ -803,6 +808,36 @@ add('nt.region',
     'Region aktiv: forespørsler og tilbud knyttes til delstaten via kundens postnummer, bestillinger via kolonne H i arket Sales. Før midten av 2025 mangler postnummeret for omtrent en fjerdedel av forespørslene — fjorårstallene for forespørsler og tilbud blir derfor heller for lave.',
     'Bölge etkin: talepler ve teklifler müşterinin posta koduna göre, rezervasyonlar Sales sayfasındaki H sütununa göre eyalete atanır. 2025 ortasından önce taleplerin yaklaşık dörtte birinde posta kodu eksiktir — bu nedenle talep ve tekliflerde geçen yılın değerleri daha düşük çıkabilir.',
     'Régió aktív: az érdeklődéseket és ajánlatokat a cockpit az ügyfél irányítószáma alapján, a foglalásokat a Sales lap H oszlopa alapján rendeli tartományhoz. 2025 közepe előtt az érdeklődések nagyjából negyedénél hiányzik az irányítószám — az előző évi érdeklődés- és ajánlatértékek ezért inkább alacsonyabbak.')
+add('mp.titleDreg', 'Reiseregionen der Hotels', 'Reisregio’s van de hotels', 'Regiones de destino de los hoteles',
+    'Regioni di destinazione degli hotel', 'Odredišne regije hotela', 'Cílové regiony hotelů', 'Hotellenes reiseregioner',
+    'Otellerin varış bölgeleri', 'A szállodák célrégiói')
+add('h.mapDreg',
+    'Kreis = Reiseregion im Median der Hotelorte, Größe und Farbe nach Kennzahl. Klick setzt den Filter Reiseregion.',
+    'Cirkel = reisregio op de mediaan van de hotelplaatsen, grootte en kleur volgens kerncijfer. Klik zet het filter reisregio.',
+    'Círculo = región de destino en la mediana de las localidades de los hoteles; tamaño y color según el indicador. Un clic aplica el filtro.',
+    'Cerchio = regione di destinazione nella mediana delle località degli hotel; dimensione e colore secondo l’indicatore. Un clic imposta il filtro.',
+    'Krug = odredišna regija u medijanu mjesta hotela, veličina i boja prema pokazatelju. Klik postavlja filtar.',
+    'Kruh = cílový region v mediánu míst hotelů, velikost a barva podle ukazatele. Kliknutí nastaví filtr.',
+    'Sirkel = reiseregion i medianen av hotellstedene, størrelse og farge etter nøkkeltall. Klikk setter filteret.',
+    'Daire = otel konumlarının medyanındaki varış bölgesi; boyut ve renk göstergeye göre. Tıklamak filtreyi uygular.',
+    'Kör = célrégió a szállodák helyének mediánjában, méret és szín a mutató szerint. Kattintás beállítja a szűrőt.')
+add('h.mapDregZoom', 'Mit gewähltem Reiseland zoomt die Karte auf dieses Land.', 'Met een gekozen bestemming zoomt de kaart in op dat land.',
+    'Con un país de destino elegido, el mapa se acerca a ese país.', 'Con un paese di destinazione scelto, la mappa si avvicina a quel paese.',
+    'Uz odabranu odredišnu zemlju karta se približava toj zemlji.', 'Při zvolené cílové zemi se mapa přiblíží na tuto zemi.',
+    'Med valgt reiseland zoomer kartet inn på landet.', 'Varış ülkesi seçildiğinde harita o ülkeye yakınlaşır.',
+    'Kiválasztott célország esetén a térkép arra az országra nagyít.')
+add('mp.noPos', 'Ohne Kartenposition: {l}', 'Zonder kaartpositie: {l}', 'Sin posición en el mapa: {l}', 'Senza posizione sulla mappa: {l}',
+    'Bez položaja na karti: {l}', 'Bez polohy na mapě: {l}', 'Uten kartposisjon: {l}', 'Harita konumu yok: {l}', 'Térképpozíció nélkül: {l}')
+add('nt.dreg',
+    'Reiseregion {r}: Buchungen und Angebote zählen nach der Region des Hotels. Unique Anfragen zählen einen Kunden in jeder Region, in der er ein Hotel angefragt hat — die Summe über mehrere Regionen ist deshalb größer als die Unique Anfragen gesamt.',
+    'Reisregio {r}: boekingen en offertes tellen naar de regio van het hotel. Unieke aanvragen tellen een klant in elke regio waar hij een hotel heeft aangevraagd — de som over meerdere regio’s is daardoor groter dan het totaal.',
+    'Región de destino {r}: reservas y ofertas cuentan según la región del hotel. Las solicitudes únicas cuentan a un cliente en cada región en la que pidió un hotel; la suma de varias regiones supera por eso el total.',
+    'Regione di destinazione {r}: prenotazioni e offerte contano secondo la regione dell’hotel. Le richieste uniche contano un cliente in ogni regione in cui ha richiesto un hotel: la somma su più regioni supera quindi il totale.',
+    'Odredišna regija {r}: rezervacije i ponude broje se prema regiji hotela. Jedinstveni upiti broje klijenta u svakoj regiji u kojoj je tražio hotel — zbroj više regija zato je veći od ukupnog broja.',
+    'Cílový region {r}: rezervace a nabídky se počítají podle regionu hotelu. Unikátní poptávky počítají zákazníka v každém regionu, kde poptal hotel — součet více regionů je proto vyšší než celkový počet.',
+    'Reiseregion {r}: bestillinger og tilbud telles etter hotellets region. Unike forespørsler teller en kunde i hver region der han har forespurt et hotell — summen over flere regioner blir derfor større enn totalen.',
+    'Varış bölgesi {r}: rezervasyonlar ve teklifler otelin bölgesine göre sayılır. Tekil talepler, müşteriyi otel talep ettiği her bölgede sayar — birden çok bölgenin toplamı bu yüzden genel toplamdan büyüktür.',
+    'Célrégió {r}: a foglalások és ajánlatok a szálloda régiója szerint számítanak. Az egyedi érdeklődések egy ügyfelet minden régióban számolnak, ahol szállodát kért — több régió összege ezért nagyobb az összesnél.')
 add('ctl.plz', 'PLZ-Gebiet', 'Postcodegebied', 'Zona postal', 'Zona CAP', 'Poštansko područje', 'Oblast PSČ',
     'Postnummerområde', 'Posta kodu bölgesi', 'Irányítószám-körzet')
 add('mp.titlePlz', 'PLZ-Gebiete der Kunden in Deutschland, Österreich, der Schweiz und den Niederlanden',
@@ -1187,7 +1222,8 @@ DEFS = [
       'Sales sayfasında G sütunu, Combit’te KundenHerkunft sütunu. O da eşitlenmiştir.',
       'A Sales lap G oszlopa, a Combitban a KundenHerkunft oszlop. Szintén egységesítve.')),
     ('region',
-     ('Region', 'Regio', 'Región', 'Regione', 'Regija', 'Region', 'Region', 'Bölge', 'Régió'),
+     ('Herkunftsregion', 'Herkomstregio', 'Región de origen', 'Regione di provenienza', 'Regija podrijetla',
+      'Region původu', 'Opprinnelsesregion', 'Köken bölgesi', 'Származási régió'),
      ('Bundesland, Kanton oder Provinz des Kunden. Buchungen: Spalte H im Blatt Sales; ist sie leer, gilt das Bundesland zur Kunden-PLZ (Spalte X). Anfragen und Angebote: aus der PLZ in C_AP (Combit führt selbst kein Bundesland) — für Kunden aus Deutschland, Österreich, der Schweiz und den Niederlanden. Ohne gültige PLZ fehlt die Anfrage im Bundesland; vor Mitte 2025 betrifft das rund ein Viertel.',
       'Deelstaat, kanton of provincie van de klant. Boekingen: kolom H in het blad Sales; is die leeg, dan geldt de deelstaat bij de postcode (kolom X). Aanvragen en offertes: uit de postcode in C_AP (Combit kent zelf geen deelstaat) — voor klanten uit Duitsland, Oostenrijk, Zwitserland en Nederland. Zonder geldige postcode ontbreekt de aanvraag in de deelstaat; vóór medio 2025 geldt dat voor ongeveer een kwart.',
       'Estado federado, cantón o provincia del cliente. Reservas: columna H de la hoja Sales; si está vacía, se usa el estado según el código postal (columna X). Solicitudes y ofertas: a partir del código postal en C_AP (Combit no registra el estado), para clientes de Alemania, Austria, Suiza y Países Bajos. Sin código postal válido la solicitud no aparece en el estado; antes de mediados de 2025 afecta a aproximadamente una cuarta parte.',
@@ -1197,6 +1233,18 @@ DEFS = [
       'Delstat, kanton eller provins for kunden. Bestillinger: kolonne H i arket Sales; er den tom, gjelder delstaten for postnummeret (kolonne X). Forespørsler og tilbud: fra postnummeret i C_AP (Combit fører selv ingen delstat) — for kunder fra Tyskland, Østerrike, Sveits og Nederland. Uten gyldig postnummer mangler forespørselen i delstaten; før midten av 2025 gjelder det omtrent en fjerdedel.',
       'Müşterinin eyaleti, kantonu veya ili. Rezervasyonlar: Sales sayfasında H sütunu; boşsa posta koduna göre eyalet (X sütunu). Talepler ve teklifler: C_AP’deki posta kodundan (Combit kendisi eyalet tutmaz) — Almanya, Avusturya, İsviçre ve Hollanda’dan müşteriler için. Geçerli posta kodu yoksa talep eyalette görünmez; 2025 ortasından önce bu yaklaşık dörtte biri etkiler.',
       'Az ügyfél tartománya, kantonja vagy provinciája. Foglalások: a Sales lap H oszlopa; ha üres, az irányítószám szerinti tartomány (X oszlop). Érdeklődések és ajánlatok: a C_AP irányítószámából (a Combit maga nem tart nyilván tartományt) — német, osztrák, svájci és holland ügyfelekre. Érvényes irányítószám nélkül az érdeklődés hiányzik a tartományból; 2025 közepe előtt ez nagyjából a negyedüket érinti.')),
+    ('dreg',
+     ('Reiseregion', 'Reisregio', 'Región de destino', 'Regione di destinazione', 'Odredišna regija', 'Cílový region',
+      'Reiseregion', 'Varış bölgesi', 'Célrégió'),
+     ('Region des Hotels aus Spalte AO im Blatt Locations, z. B. Salzburg, Gardasee oder Istrien. Ist sie leer, erschließt das Cockpit sie aus dem Ort am Anfang des Hotelnamens (bei SOCCACUPs irgendwo im Namen): gleiche Region wie andere Hotels im selben Ort, sonst wie die nächstgelegenen Hotels. Buchungen zählen nach dem gebuchten Hotel, Angebote nach dem angebotenen Hotel, Unique Anfragen einmal je Kunde, Sales-Team, AP-Jahr und Region.',
+      'Regio van het hotel uit kolom AO in het blad Locations, bijv. Salzburg, Gardameer of Istrië. Is die leeg, dan leidt de cockpit haar af uit de plaats aan het begin van de hotelnaam (bij SOCCACUPs ergens in de naam). Boekingen tellen naar het geboekte hotel, offertes naar het aangeboden hotel, unieke aanvragen eenmaal per klant, salesteam, AP-jaar en regio.',
+      'Región del hotel según la columna AO de la hoja Locations, p. ej. Salzburgo, Lago de Garda o Istria. Si está vacía, el cockpit la deduce de la localidad al inicio del nombre del hotel (en los SOCCACUP, en cualquier parte del nombre). Reservas según el hotel reservado, ofertas según el hotel ofertado, solicitudes únicas una vez por cliente, equipo, año AP y región.',
+      'Regione dell’hotel dalla colonna AO del foglio Locations, ad es. Salisburgo, Lago di Garda o Istria. Se vuota, il cockpit la ricava dalla località all’inizio del nome dell’hotel (per i SOCCACUP in qualsiasi punto del nome). Prenotazioni secondo l’hotel prenotato, offerte secondo l’hotel offerto, richieste uniche una volta per cliente, team, anno AP e regione.',
+      'Regija hotela iz stupca AO na listu Locations, npr. Salzburg, Gardsko jezero ili Istra. Ako je prazna, cockpit je izvodi iz mjesta na početku naziva hotela (kod SOCCACUP-ova bilo gdje u nazivu). Rezervacije prema rezerviranom hotelu, ponude prema ponuđenom hotelu, jedinstveni upiti jednom po klijentu, timu, AP godini i regiji.',
+      'Region hotelu ze sloupce AO na listu Locations, např. Salcbursko, Gardské jezero nebo Istrie. Je-li prázdný, cockpit ho odvodí z místa na začátku názvu hotelu (u SOCCACUP kdekoli v názvu). Rezervace podle rezervovaného hotelu, nabídky podle nabízeného hotelu, unikátní poptávky jednou za zákazníka, tým, rok AP a region.',
+      'Hotellets region fra kolonne AO i arket Locations, f.eks. Salzburg, Gardasjøen eller Istria. Er den tom, utleder cockpiten den fra stedet i begynnelsen av hotellnavnet (for SOCCACUP hvor som helst i navnet). Bestillinger etter bestilt hotell, tilbud etter tilbudt hotell, unike forespørsler én gang per kunde, team, AP-år og region.',
+      'Otelin bölgesi, Locations sayfasındaki AO sütunundan (ör. Salzburg, Garda Gölü veya İstria). Boşsa cockpit bunu otel adının başındaki yerden çıkarır (SOCCACUP’larda adın herhangi bir yerinden). Rezervasyonlar rezerve edilen otele, teklifler teklif edilen otele göre; tekil talepler müşteri, takım, AP yılı ve bölge başına bir kez.',
+      'A szálloda régiója a Locations lap AO oszlopából, pl. Salzburg, Garda-tó vagy Isztria. Ha üres, a cockpit a szállodanév elején álló településből vezeti le (SOCCACUP-oknál a név bármely részéből). Foglalások a foglalt, ajánlatok az ajánlott szálloda szerint, egyedi érdeklődések ügyfelenként, csapatonként, AP-évenként és régiónként egyszer.')),
     ('hotel',
      ('Hotel', 'Hotel', 'Hotel', 'Hotel', 'Hotel', 'Hotel', 'Hotell', 'Otel', 'Szálloda'),
      ('Spalte 9 im Blatt Sales trägt dieselbe WebID wie der Combit-Export und das Blatt Locations. Darüber hängen Anfragen, Angebote und Buchungen am selben Haus. Name, Land, Exklusivität und der Verkaufsstart stammen aus dem Blatt Locations.',
