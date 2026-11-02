@@ -84,11 +84,6 @@ input[type=date]:focus,select:focus,button:focus-visible{outline:2px solid var(-
 .chip[aria-pressed=true]{background:var(--fg-strong);color:var(--bg);border-color:var(--fg-strong)}
 .chip.sm{font-size:12px;padding:4px 9px}
 .spacer{flex:1 1 auto}
-/* Monatsziel Deckungsbeitrag (nur bei „Laufender Monat“) */
-.card.goalbar{margin-top:var(--s-4);padding:var(--s-2) var(--s-5)}
-.goalbar svg{display:block}
-.goalbar h3{margin:var(--s-1) 0 var(--s-2);padding-left:.75%;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-strong)}
-.goalbar .gn{font-size:11.5px;color:var(--fg-muted);margin:2px 0 var(--s-1)}
 .controls .brk{flex-basis:100%;height:0}
 /* Zeitraum-Gruppen: dezenter Rahmen mit Titel in der Linie */
 .fgroup{position:relative;display:flex;gap:var(--s-4);align-items:flex-end;flex-wrap:wrap;
@@ -589,7 +584,6 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
       <span class="hint" id="funnelHint"></span>
     </div>
     <div class="tiles" id="funnelTiles"></div>
-    <div class="card goalbar" id="goalBar" hidden></div>
     <div class="note" id="leadNote"></div>
   </section>
 
@@ -906,8 +900,6 @@ const LEAD_CUT_M = (2024-2019)*12;                       // ab hier tagesgenaue 
 const LEAD_CUT_D = d2i(new Date(2024,0,1));
 
 /* Teams nach Bereich gruppieren */
-/* Monatsziel Deckungsbeitrag für die gesamte SOCCA GROUP (Strahl unter dem Funnel) */
-const GOAL_DB_MONTH = 1100000;
 
 const GROUPS = [
   {id:'all',  k:'all.areas', test:()=>true},
@@ -1508,53 +1500,9 @@ function tile(id,{funnel=false}={}){
     <span class="sub">${subs.join('')||'&nbsp;'}</span></div>`;
 }
 
-/* Strahl: DB im laufenden Monat gegen das Monatsziel und gegen den
-   gleichmäßigen Soll-Verlauf (Tag x von n). Rechnet immer über alle Teams
-   und ohne Länder-/Reisefilter, weil das Ziel für die SOCCA GROUP gilt. */
-function renderGoal(){
-  const el=document.getElementById('goalBar');
-  if(state.preset!=='1m' || !GOAL_DB_MONTH){ el.hidden=true; return; }
-  const now=today(), y=now.getFullYear(), m=now.getMonth();
-  const day=now.getDate(), nDays=new Date(y,m+1,0).getDate();
-  const f=d2i(new Date(y,m,1)), to=d2i(now);
-  let db=0;
-  for(const r of D.bookings) if(r[0]>=f && r[0]<=to) db+=r[7];
-  const goal=GOAL_DB_MONTH, pace=goal*day/nDays, diff=db-pace;
-  const share=db/goal;
-  const max=Math.max(goal, db);
-  const W=1100, PL=8, PR=8, bw=W-PL-PR, y0=6, h=18, H=y0+h+21;
-  const X=v=>PL+Math.max(0,v)/max*bw;
-  const xG=X(goal), xP=X(pace), xI=X(db);
-  const fmtE=v=>fmt('db',v), eur0=v=>nf(Math.round(v),0)+' €';
-  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('goal.title')}">`;
-  svg+=`<rect x="${PL}" y="${y0}" width="${(xG-PL).toFixed(1)}" height="${h}" fill="var(--bg-alt)"/>`;
-  svg+=`<rect x="${PL}" y="${y0}" width="${Math.max(0,xI-PL).toFixed(1)}" height="${h}" fill="var(--s-ist)"/>`;
-  /* Soll heute */
-  svg+=`<line x1="${xP.toFixed(1)}" x2="${xP.toFixed(1)}" y1="${y0-4}" y2="${y0+h+4}" stroke="var(--s-vj)" stroke-width="2.5"/>`;
-  /* Ziel am Ende */
-  svg+=`<line x1="${xG.toFixed(1)}" x2="${xG.toFixed(1)}" y1="${y0-4}" y2="${y0+h+4}" stroke="var(--fg-strong)" stroke-width="2.5"/>`;
-  svg+=`<text class="axis-strong" x="${xG.toFixed(1)}" y="${y0+h+16}" text-anchor="end">${t('goal.target')} ${fmtE(goal)}</text>`;
-  /* Ist-Wert */
-  const inside = xI-PL > 120;
-  svg+=`<text class="axis-strong" x="${(inside? xI-8 : xI+8).toFixed(1)}" y="${y0+h-5}" text-anchor="${inside?'end':'start'}"`+
-       `${inside?' style="fill:#fff"':''}>${fmtE(db)}</text>`;
-  svg+=`<rect class="hit" x="0" y="0" width="${W}" height="${H}" data-tip="${(t('goal.title')+'\n'+t('pn.ist')+': '+eur0(db)+
-       '\n'+t('goal.pace')+': '+eur0(pace)+'\n'+t('goal.target')+': '+eur0(goal)).replace(/"/g,'&quot;')}"/>`;
-  const st = db>=goal ? `<tspan style="fill:var(--pos);font-weight:800">${t('goal.reached')}</tspan>`
-    : `<tspan style="fill:var(${diff>=0?'--pos':'--neg'});font-weight:800">${t(diff>=0?'goal.ahead':'goal.behind',{v:fmtE(Math.abs(diff))})}</tspan>`;
-  svg+=`<text class="axis" x="${PL}" y="${y0+h+16}" pointer-events="none"><tspan class="axis-strong">${fmtE(db)}</tspan> ${t('goal.of')} ${fmtE(goal)} (${nf(share*100,0)} %) · ${st}</text>`;
-  svg+=`</svg>`;
-  const filtered = state.group!=='all' || state.team || dimActive() || arrActive();
-  el.innerHTML = `<h3>${t('goal.title')} · ${new Date(y,m,1).toLocaleDateString(LOC,{month:'long',year:'numeric'})}</h3>` +
-    svg + (filtered ? `<div class="gn">${t('goal.note')}</div>` : '');
-  el.hidden=false;
-  bindTips('#goalBar');
-}
-
 function renderFunnel(){
   const ids=['leads','props','teams','book','vk','db'];
   document.getElementById('funnelTiles').innerHTML = ids.map(i=>tile(i,{funnel:true})).join('');
-  renderGoal();
   const q=(a,b)=> b? nf(a/b*100,1)+' %' : '—';
   const fac=(a,b)=> b? nf(a/b,2)+' ×' : '—';
   document.getElementById('funnelHint').innerHTML = CUR.leadNA ? '' :
