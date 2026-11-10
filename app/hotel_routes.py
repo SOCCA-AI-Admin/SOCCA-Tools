@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import base64
 import io
 import zipfile
-from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
+from PIL import Image
 from starlette.requests import Request
 
 from app.image_processor import (
     BRANDS,
     ImageTooSmallError,
+    MIN_PIXEL_COUNT,
     SUPPORTED_IMAGE_EXTENSIONS,
     process_hotel_image,
     sanitize_filename_part,
@@ -21,7 +22,8 @@ from app.image_processor import (
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-IMAGE_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS
+THUMB_SIZE = (480, 320)
+THUMB_QUALITY = 80
 
 
 @router.get("/")
@@ -29,16 +31,29 @@ async def hotel_index(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="hotel.html",
-        context={"brands": BRANDS},
+        context={
+            "brands": BRANDS,
+            "extensions": sorted(SUPPORTED_IMAGE_EXTENSIONS),
+            "min_pixels": MIN_PIXEL_COUNT,
+        },
     )
 
 
+# Bewusst ohne async: die Bildbearbeitung rechnet blockierend und läuft so im
+# Threadpool von FastAPI, statt den Server für alle anderen Nutzer anzuhalten.
 @router.post("/api/process")
-async def process_hotel_images(
+def process_upload(
     hotel_name: str = Form(...),
     brand: str = Form(...),
-    files: list[UploadFile] = File(...),
+    file: UploadFile = File(...),
 ):
+    """
+    Bearbeitet eine hochgeladene Datei (Einzelbild oder ZIP mit Bildern).
+
+    Antwort: die bearbeiteten Bilder als Base64 (Vollbild 1800 x 1200 und Vorschau),
+    dazu übersprungene und fehlgeschlagene Dateien. Die Dateinamen und die ZIP
+    für den Download entstehen erst im Browser, nach der Sortierung.
+    """
     hotel = hotel_name.strip()
     if not hotel:
         raise HTTPException(status_code=400, detail="Bitte einen Hotelnamen eingeben.")
@@ -47,111 +62,82 @@ async def process_hotel_images(
     if brand_upper not in BRANDS:
         raise HTTPException(status_code=400, detail="Bitte eine gültige Brand auswählen.")
 
-    image_payloads = await _collect_image_payloads(files)
-    if not image_payloads:
-        raise HTTPException(status_code=400, detail="Bitte mindestens eine Bilddatei oder ZIP-Datei hochladen.")
+    payloads, failed = _collect_image_payloads(file)
 
-    safe_hotel = sanitize_filename_part(hotel)
-    safe_brand = sanitize_filename_part(brand_upper)
-
-    prepared: list[tuple[str, bytes]] = []
-    too_small_files: list[str] = []
-    for source_name, content in image_payloads:
+    images: list[dict[str, str]] = []
+    skipped: list[str] = []
+    for source_name, content in payloads:
         try:
             validate_min_pixel_count(content)
         except ImageTooSmallError:
-            too_small_files.append(source_name)
+            skipped.append(source_name)
             continue
-        prepared.append((source_name, content))
-
-    if not prepared:
-        if too_small_files:
-            formatted = ", ".join(too_small_files)
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Keine ZIP erstellt: Alle Dateien wurden übersprungen, weil sie weniger als 480000 Pixel haben: "
-                    f"{formatted}"
-                ),
-            )
-        raise HTTPException(status_code=400, detail="Keine verarbeitbaren Bilddateien vorhanden.")
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for index, (source_name, content) in enumerate(prepared, start=1):
-            try:
-                processed, _ = process_hotel_image(content)
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Bild konnte nicht verarbeitet werden ({source_name}): {exc}",
-                ) from exc
-
-            filename = f"{safe_hotel}_{safe_brand}_{index:03d}.jpg"
-            archive.writestr(filename, processed)
-
-    zip_buffer.seek(0)
-    zip_name = f"{safe_hotel}_{safe_brand}.zip"
-
-    headers = {"Content-Disposition": f'attachment; filename="{zip_name}"'}
-    if too_small_files:
-        encoded = "|".join(quote(name, safe="") for name in too_small_files)
-        headers["X-Skipped-Files"] = encoded
-        headers["X-Skipped-Count"] = str(len(too_small_files))
-
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers=headers,
-    )
-
-
-def _is_image_upload(upload: UploadFile) -> bool:
-    name = (upload.filename or "").lower()
-    return any(name.endswith(ext) for ext in IMAGE_EXTENSIONS)
-
-
-def _is_zip_upload(upload: UploadFile) -> bool:
-    return (upload.filename or "").lower().endswith(".zip")
-
-
-async def _collect_image_payloads(files: list[UploadFile]) -> list[tuple[str, bytes]]:
-    payloads: list[tuple[str, bytes]] = []
-    for upload in files:
-        if _is_image_upload(upload):
-            content = await upload.read()
-            if content:
-                payloads.append((upload.filename or "(unbekannt)", content))
-            continue
-
-        if not _is_zip_upload(upload):
-            continue
-
-        zip_bytes = await upload.read()
-        if not zip_bytes:
+        except Exception:
+            failed.append({"source": source_name, "error": "Datei ist kein lesbares Bild."})
             continue
 
         try:
-            with zipfile.ZipFile(io.BytesIO(zip_bytes), mode="r") as archive:
-                for member in archive.infolist():
-                    if member.is_dir():
-                        continue
-                    member_name = member.filename
-                    if not _name_has_image_extension(member_name):
-                        continue
-                    member_content = archive.read(member)
-                    if not member_content:
-                        continue
-                    source = f"{upload.filename}::{member_name}"
-                    payloads.append((source, member_content))
-        except zipfile.BadZipFile as exc:
-            raise HTTPException(
-                status_code=400,
-                detail=f"ZIP-Datei konnte nicht gelesen werden ({upload.filename}).",
-            ) from exc
-    return payloads
+            processed, _ = process_hotel_image(content)
+        except Exception as exc:  # einzelnes Bild scheitert, der Rest läuft weiter
+            failed.append({"source": source_name, "error": str(exc)})
+            continue
+
+        images.append(
+            {
+                "source": source_name,
+                "data": base64.b64encode(processed).decode("ascii"),
+                "thumb": base64.b64encode(_make_thumbnail(processed)).decode("ascii"),
+            }
+        )
+
+    return {
+        "prefix": f"{sanitize_filename_part(hotel)}_{sanitize_filename_part(brand_upper)}",
+        "images": images,
+        "skipped": skipped,
+        "failed": failed,
+    }
 
 
-def _name_has_image_extension(name: str) -> bool:
+def _make_thumbnail(jpeg: bytes) -> bytes:
+    with Image.open(io.BytesIO(jpeg)) as image:
+        image.thumbnail(THUMB_SIZE, Image.Resampling.LANCZOS)
+        out = io.BytesIO()
+        image.save(out, format="JPEG", quality=THUMB_QUALITY, optimize=True)
+        return out.getvalue()
+
+
+def _has_image_extension(name: str) -> bool:
     lower = name.lower()
-    return any(lower.endswith(ext) for ext in IMAGE_EXTENSIONS)
+    return any(lower.endswith(ext) for ext in SUPPORTED_IMAGE_EXTENSIONS)
+
+
+def _collect_image_payloads(upload: UploadFile) -> tuple[list[tuple[str, bytes]], list[dict[str, str]]]:
+    name = upload.filename or "(unbekannt)"
+    content = upload.file.read()
+    if not content:
+        return [], [{"source": name, "error": "Datei ist leer."}]
+
+    if _has_image_extension(name) or not name.lower().endswith(".zip"):
+        # Auch Bilder ohne passende Endung (z. B. aus der Zwischenablage) versuchen;
+        # was kein Bild ist, landet bei der Prüfung unter "failed".
+        return [(name, content)], []
+
+    payloads: list[tuple[str, bytes]] = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(content), mode="r") as archive:
+            for member in archive.infolist():
+                if member.is_dir() or not _has_image_extension(member.filename):
+                    continue
+                # macOS legt in ZIPs Schattendateien an (__MACOSX/._bild.jpg)
+                base = member.filename.rsplit("/", 1)[-1]
+                if member.filename.startswith("__MACOSX/") or base.startswith("._"):
+                    continue
+                member_content = archive.read(member)
+                if member_content:
+                    payloads.append((f"{name} › {member.filename}", member_content))
+    except zipfile.BadZipFile:
+        return [], [{"source": name, "error": "ZIP-Datei konnte nicht gelesen werden."}]
+
+    if not payloads:
+        return [], [{"source": name, "error": "ZIP enthält keine Bilddateien."}]
+    return payloads, []

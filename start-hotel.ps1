@@ -2,7 +2,7 @@
 Set-Location $PSScriptRoot
 
 Write-Host "Installiere/aktualisiere Pakete ..." -ForegroundColor Cyan
-.\.venv\Scripts\python.exe -m pip install jinja2 python-multipart pillow fastapi "uvicorn[standard]" -q
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -q
 
 Write-Host ""
 Write-Host "Server startet. Browser oeffnen:" -ForegroundColor Green

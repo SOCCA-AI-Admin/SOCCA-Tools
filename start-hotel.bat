@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 
 echo Installiere Pakete in .venv ...
-".venv\Scripts\python.exe" -m pip install jinja2 python-multipart pillow fastapi "uvicorn[standard]" -q
+".venv\Scripts\python.exe" -m pip install -r requirements.txt -q
 
 echo.
 echo Server startet - Browser oeffnen:
