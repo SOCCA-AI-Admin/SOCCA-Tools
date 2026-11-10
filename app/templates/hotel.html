@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hotelbilder · SOCCA GROUP</title>
+    <title>Bilder Destinationen · SOCCA GROUP</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/hotel.css?v=2" />
+    <link rel="stylesheet" href="/static/hotel.css?v=3" />
   </head>
   <body data-ext="{{ extensions | join(',') }}" data-min-pixels="{{ min_pixels }}">
     <header>
       <div class="bar"></div>
       <div class="inner headrow">
         <div>
-          <div class="eyebrow">SOCCA GROUP · Trainingslager</div>
-          <h1><a href="./" id="homeLink">Hotelbilder</a></h1>
+          <div class="eyebrow">SOCCA GROUP</div>
+          <h1><a href="./" id="homeLink">Bilder Destinationen</a></h1>
           <p>Bilder hochladen, Kategorien zuordnen, Reihenfolge festlegen und als ZIP mit fertigen Dateinamen laden.</p>
         </div>
         <button class="chip sm" id="themeBtn" type="button" aria-pressed="false">Dunkel</button>
@@ -32,7 +32,13 @@
           <label id="brandLabel">Brand</label>
           <div class="presets" id="brands">
             {% for brand in brands %}
+            {% if logos[brand] %}
+            <button class="chip logo" type="button" data-brand="{{ brand }}" aria-pressed="false" title="{{ brand }}">
+              <img src="{{ logos[brand] }}" alt="{{ brand }}" />
+            </button>
+            {% else %}
             <button class="chip" type="button" data-brand="{{ brand }}" aria-pressed="false">{{ brand }}</button>
+            {% endif %}
             {% endfor %}
           </div>
         </div>
@@ -95,7 +101,7 @@
       <button type="button" id="toastUndo" hidden>Rückgängig</button>
     </div>
 
-    <script src="/static/zip.js?v=2"></script>
-    <script src="/static/hotel.js?v=2"></script>
+    <script src="/static/zip.js?v=3"></script>
+    <script src="/static/hotel.js?v=3"></script>
   </body>
 </html>

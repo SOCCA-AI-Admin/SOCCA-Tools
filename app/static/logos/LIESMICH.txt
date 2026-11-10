@@ -1,0 +1,13 @@
+Brand-Logos für die Markenauswahl
+
+Dateiname = Brand in Kleinbuchstaben, Format SVG (bevorzugt), PNG, WebP oder JPG:
+
+  soccatours.svg
+  soccacup.svg
+  swimtours.svg
+  athleticstours.svg
+  tennistours.svg
+
+Liegt für eine Brand kein Logo vor, zeigt das Tool ihren Namen als Text.
+Logos werden auf weißem Grund gezeigt, auch im Dunkelmodus. Am besten eignet sich
+die querformatige Version mit transparentem Hintergrund.

@@ -64,6 +64,13 @@ input[type=text]:disabled{background:var(--bg-alt);color:var(--fg-strong);font-w
 .chip[aria-pressed=true]{background:var(--fg-strong);color:var(--bg);border-color:var(--fg-strong)}
 .chip:disabled{cursor:default;opacity:.45}
 .chip[aria-pressed=true]:disabled{opacity:1}
+#brands:has(.logo) .chip{height:44px}
+/* Brand-Logos: immer auf Weiß, damit die Logos auch im Dunkelmodus lesbar bleiben */
+.chip.logo{background:#fff;border-color:var(--border);padding:4px 12px;height:44px;display:inline-flex;align-items:center}
+.chip.logo img{display:block;height:28px;width:auto;max-width:150px;object-fit:contain}
+.chip.logo[aria-pressed=true]{background:#fff;border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+.chip.logo:disabled{opacity:.35}
+.chip.logo[aria-pressed=true]:disabled{opacity:1}
 .chip.sm{font-size:12px;padding:4px 9px;min-height:28px}
 .spacer{flex:1 1 auto}
 .exportbox{display:flex;flex-direction:column;align-items:flex-end;gap:var(--s-1)}

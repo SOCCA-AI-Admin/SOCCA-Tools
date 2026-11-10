@@ -4,6 +4,8 @@ import base64
 import io
 import zipfile
 
+from pathlib import Path
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.templating import Jinja2Templates
 from PIL import Image
@@ -22,6 +24,8 @@ from app.image_processor import (
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+LOGO_DIR = Path(__file__).parent / "static" / "logos"
+LOGO_EXTENSIONS = (".svg", ".png", ".webp", ".jpg")
 THUMB_SIZE = (480, 320)
 THUMB_QUALITY = 80
 
@@ -33,6 +37,7 @@ async def hotel_index(request: Request):
         name="hotel.html",
         context={
             "brands": BRANDS,
+            "logos": _brand_logos(),
             "extensions": sorted(SUPPORTED_IMAGE_EXTENSIONS),
             "min_pixels": MIN_PIXEL_COUNT,
         },
@@ -96,6 +101,19 @@ def process_upload(
         "skipped": skipped,
         "failed": failed,
     }
+
+
+def _brand_logos() -> dict[str, str]:
+    """Logo je Brand aus app/static/logos/<brand>.<svg|png|webp|jpg>, Dateiname klein geschrieben.
+    Fehlt ein Logo, zeigt die Oberfläche den Namen als Text."""
+    logos: dict[str, str] = {}
+    for brand in BRANDS:
+        for ext in LOGO_EXTENSIONS:
+            path = LOGO_DIR / f"{brand.lower()}{ext}"
+            if path.is_file():
+                logos[brand] = f"/static/logos/{path.name}?v={int(path.stat().st_mtime)}"
+                break
+    return logos
 
 
 def _make_thumbnail(jpeg: bytes) -> bytes:

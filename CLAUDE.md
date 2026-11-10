@@ -6,7 +6,7 @@ Lokaler Arbeitsordner: `OneDrive - SOCCA GROUP\Process\KI\SOCCA PiXX`.
 
 | Tool | Ort | Lokale Umgebung | Produktion |
 |---|---|---|---|
-| Hotelbilder („Trainingslager – Hotelbilder“) | `app/hotel_app.py` | `.venv` in der Wurzel | Docker, Port 8000 |
+| Hotelbilder (Oberfläche: „Bilder Destinationen“) | `app/hotel_app.py` | `.venv` in der Wurzel | Docker, Port 8000 |
 | Rechnungs-Upload | `app/main.py` | `.venv` in der Wurzel | nicht produktiv |
 | SOCCA Sales Cockpit | `socca-cockpit/` | eigene `.venv` in `socca-cockpit/` | Docker, eigener Port, siehe `socca-cockpit/README.md` |
 
@@ -31,6 +31,7 @@ wenn alle Bilder zugeordnet sind. Entfernen mit ✕ (6 Sekunden rückgängig mac
 - `app/templates/hotel.html` – Oberfläche; Dateiendungen und Mindestpixel kommen per `data-*` aus Python
 - `app/static/hotel.js` – Upload-Warteschlange, Kategorien (`CATS`), Drag & Drop, Dateinamen, Export
 - `app/static/zip.js` – eigener ZIP-Schreiber (Methode „stored“), keine Fremdbibliothek
+- `app/static/logos/` – Brand-Logos für die Markenauswahl (`<brand>.svg|png|webp|jpg`, klein geschrieben); fehlt eins, steht der Name als Text
 - `app/static/hotel.css` – Gestaltung nach SOCCA GROUP Design System, Tokens wie im Sales Cockpit
 - `Dockerfile`, `docker-compose.yml` – Produktion
 - `start-hotel.bat`, `start-hotel.ps1` – lokaler Start unter Windows
