@@ -8,7 +8,8 @@ Webbasiertes Tool zur Aufbereitung von Hotelbildern für Trainingslager-Präsent
 
 1. Brand im Kopf per Logo wählen (SOCCATOURS, SOCCACUP, SWIMTOURS, ATHLETICSTOURS, TENNISTOURS) und Hotelname eingeben.
    Beides ist nach dem ersten Upload fest; „Neu beginnen“ setzt alles zurück.
-2. Bilder oder ZIP-Dateien hochladen. Jedes Bild wird einzeln bearbeitet (1800 × 1200 px, 3:2, JPG, höchstens 1 MB).
+2. Bilder oder ZIP-Dateien hochladen. Jedes Bild wird einzeln bearbeitet: LightCraft-Filter „SOCCA“, automatisch
+   gerade ausgerichtet, auf 3:2 Querformat zugeschnitten (Hochformat oben und unten beschnitten), 1800 × 1200 px, JPG, höchstens 1 MB.
    Bilder unter 480.000 Pixel werden übersprungen. Weitere Bilder lassen sich jederzeit nachladen.
 3. Bilder den Kategorien zuordnen, per Drag & Drop oder Auswahlfeld am Bild.
 4. Reihenfolge innerhalb der Kategorie festlegen, per Drag & Drop oder mit ◀ ▶.
@@ -48,7 +49,7 @@ Im Browser: [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
 ## Technik
 
-- Backend: FastAPI, Pillow, OpenCV. `POST /api/process` nimmt eine Datei (Bild oder ZIP) und liefert die
+- Backend: FastAPI, Pillow, LightCraft (`lightcraft-cli`, Filter `app/presets/SOCCA.xmp`, Gerade ausrichten Auto). `POST /api/process` nimmt eine Datei (Bild oder ZIP) und liefert die
   bearbeiteten Bilder als Base64 zurück, dazu eine Vorschau (480 × 320).
 - Zuordnung, Dateinamen und ZIP entstehen im Browser (`app/static/hotel.js`, `app/static/zip.js`).
   Auf dem Server wird nichts gespeichert. Neu laden der Seite verwirft die Sortierung (der Browser warnt vorher).

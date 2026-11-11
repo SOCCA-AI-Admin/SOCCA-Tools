@@ -44,14 +44,19 @@ wenn alle Bilder zugeordnet sind. Entfernen mit ✕ (6 Sekunden rückgängig mac
 - Der Endpunkt ist bewusst synchron (`def`), damit die rechenintensive Bearbeitung im Threadpool läuft.
 - Kategorien und Nummernkreise stehen nur in `hotel.js` (`CATS`, `MAX_PER_CAT`).
 
-### Bildpipeline (Stand Code, unverändert aus Cursor)
+### Bildpipeline (`app/image_processor.py`)
 
-1. EXIF-Drehung übernehmen, nach RGB wandeln
-2. Horizont automatisch begradigen (OpenCV, nur bei klarem Signal, max. ±5°)
-3. Hochformat um 90° drehen
-4. Mittig auf 3:2 zuschneiden, auf 1800 × 1200 skalieren
-5. Adaptive Korrektur: Schatten, Helligkeit, Kontrast, Sättigung, Weißabgleich, Schärfe
-6. JPG-Export, Qualität ab 90 absteigend, bis die Datei höchstens 1 MB groß ist
+1. Öffnen, EXIF-Drehung übernehmen, nach RGB wandeln, auf höchstens 3000 px Kante verkleinern
+2. **LightCraft** (Open-Source-Nachbau von Lightroom, `lightcraft-cli run`): Preset
+   `app/presets/SOCCA.xmp` importieren und anwenden, `crop.autoStraighten` (Gerade ausrichten: Auto),
+   Export als TIFF. Preset-ID = `user.xmp.<crs:UUID klein>`. Höchstens zwei Läufe gleichzeitig.
+3. Mittig auf 3:2 Querformat zuschneiden; Hochformat wird dabei oben und unten beschnitten (nicht gedreht)
+4. Auf 1800 × 1200 skalieren, JPG ab Qualität 90 absteigend, bis höchstens 1 MB
+
+LightCraft steckt im Docker-Image (`Dockerfile`, feste Version mit SHA-256-Prüfsumme, derzeit 0.13.0).
+Pfad zum Programm über Umgebungsvariable `LIGHTCRAFT_CLI` (Standard: `lightcraft-cli` im PATH).
+Fehlt LightCraft, scheitert jedes Bild mit klarer Meldung; es gibt bewusst keinen stillen Ersatz.
+Filter ändern: neues `SOCCA.xmp` aus LightCraft exportieren und `app/presets/SOCCA.xmp` ersetzen.
 
 ## Arbeitsweise
 
@@ -64,6 +69,10 @@ wenn alle Bilder zugeordnet sind. Entfernen mit ✕ (6 Sekunden rückgängig mac
 - Keine Annahmen treffen, die nicht bestätigt sind. Bei Unklarheit nachfragen.
 
 ### Lokal starten (Windows, im Projektordner)
+
+Für die Bildbearbeitung braucht es lokal LightCraft: `lightcraft-0.13.0-windows-x64-portable.zip` von
+https://github.com/storytold/lightcraft/releases/tag/v0.13.0 entpacken und den Pfad setzen, z. B.
+`$env:LIGHTCRAFT_CLI = "C:\Tools\lightcraft\lightcraft-cli.exe"` (genaue Lage der exe im Archiv prüfen).
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -86,9 +95,9 @@ unter `/opt/socca-tools/socca-cockpit` und läuft auf einem anderen Port.
 
 ## Offene Punkte
 
-- **Bildbearbeitung wird später ersetzt** durch eine Open-Source-Lösung (KI-Nachbau von Adobe),
-  inklusive Schnittstelle. Bis dahin bleibt `image_processor.py` unverändert.
-- Hochformatbilder werden heute um 90° gedreht und liegen danach auf der Seite (Teil der späteren Bildbearbeitung).
 - Bisher begannen Dateinamen bei 001, jetzt je Kategorie bei 010, 020 usw. Prüfen, ob Website,
   CMS oder Präsentationsvorlagen von den alten Nummern abhängen.
 - `requirements.txt` enthält auch Pakete des Rechnungs-Uploads (`pypdf`, `openpyxl`, `pymupdf`, `pytesseract`).
+  OpenCV und numpy braucht das Bildtool seit LightCraft nicht mehr; ob der Rechnungs-Upload sie nutzt, ist ungeprüft.
+- LightCraft ist jung und erscheint alle paar Tage neu. Updates nur bewusst: Version und Prüfsumme
+  im Dockerfile ändern, vorher mit echten Hotelbildern vergleichen.

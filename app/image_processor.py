@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import io
+import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
+import threading
+from pathlib import Path
 from typing import Final
 
-import cv2
-import numpy as np
-from PIL import Image, ImageEnhance, ImageOps, ImageStat
+from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 
-# Enable iPhone HEIC/HEIF (and AVIF when available) via Pillow.
+# iPhone-HEIC/HEIF (und AVIF, wenn verfügbar) über Pillow öffnen.
 register_heif_opener()
 
 TARGET_WIDTH: Final[int] = 1800
@@ -18,6 +23,17 @@ TARGET_RATIO: Final[float] = 3 / 2
 JPEG_QUALITY: Final[int] = 90
 MIN_PIXEL_COUNT: Final[int] = 480_000
 MAX_TARGET_BYTES: Final[int] = 1_000_000
+
+# Größere Bilder werden vor LightCraft verkleinert: Das Ergebnis hat ohnehin nur 1800 px Breite,
+# der Rest bringt keine Qualität, kostet aber Zeit und Speicher (12 MP ≈ 5 s und 670 MB).
+MAX_INPUT_EDGE: Final[int] = 3000
+
+# LightCraft (Open-Source-Nachbau von Lightroom, https://github.com/storytold/lightcraft)
+LIGHTCRAFT_CLI: Final[str] = os.environ.get("LIGHTCRAFT_CLI", "lightcraft-cli")
+LIGHTCRAFT_TIMEOUT_S: Final[int] = 120
+PRESET_PATH: Final[Path] = Path(__file__).parent / "presets" / "SOCCA.xmp"
+# Höchstens zwei LightCraft-Läufe gleichzeitig, damit der Server bei mehreren Nutzern nicht ins Swappen gerät.
+_LIGHTCRAFT_SLOTS = threading.Semaphore(2)
 
 SUPPORTED_IMAGE_EXTENSIONS: Final[frozenset[str]] = frozenset(
     {
@@ -55,6 +71,10 @@ class ImageTooSmallError(ValueError):
     pass
 
 
+class LightCraftError(RuntimeError):
+    pass
+
+
 def validate_min_pixel_count(content: bytes) -> None:
     with Image.open(io.BytesIO(content)) as source:
         width, height = source.size
@@ -64,31 +84,106 @@ def validate_min_pixel_count(content: bytes) -> None:
         )
 
 
+def _preset_id() -> str:
+    """LightCraft vergibt importierten XMP-Presets die ID user.xmp.<UUID in Kleinbuchstaben>."""
+    text = PRESET_PATH.read_text(encoding="utf-8")
+    match = re.search(r'crs:UUID="([0-9A-Fa-f]+)"', text)
+    if not match:
+        raise LightCraftError(f"{PRESET_PATH.name} enthält keine crs:UUID.")
+    return f"user.xmp.{match.group(1).lower()}"
+
+
+def lightcraft_available() -> bool:
+    return shutil.which(LIGHTCRAFT_CLI) is not None or Path(LIGHTCRAFT_CLI).is_file()
+
+
 def process_hotel_image(content: bytes) -> tuple[bytes, list[str]]:
-    """Create premium web output with conservative adaptive corrections."""
+    """
+    1. Öffnen, EXIF-Drehung übernehmen, verkleinern (max. MAX_INPUT_EDGE)
+    2. LightCraft: Preset SOCCA.xmp anwenden, Gerade ausrichten (Auto), exportieren
+    3. Mittig auf 3:2 Querformat zuschneiden (Hochformat wird dabei oben und unten beschnitten)
+    4. Auf 1800 × 1200 skalieren, als JPG mit höchstens 1 MB speichern
+    """
+    notes: list[str] = []
     with Image.open(io.BytesIO(content)) as source:
-        image = ImageOps.exif_transpose(source)
-        if image.mode not in ("RGB", "L"):
-            image = image.convert("RGB")
-        elif image.mode == "L":
-            image = image.convert("RGB")
+        image = ImageOps.exif_transpose(source).convert("RGB")
+    image.thumbnail((MAX_INPUT_EDGE, MAX_INPUT_EDGE), Image.Resampling.LANCZOS)
 
-        image = _auto_level_horizon(image)
-        image = _ensure_landscape(image)
-        image = _center_crop_ratio(image, TARGET_RATIO)
-        image = image.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
-        image, adjustments = _adaptive_premium_adjust(image)
+    image, lc_notes = _develop_with_lightcraft(image)
+    notes.extend(lc_notes)
 
-        encoded, quality = _encode_jpeg_with_limit(image)
-        adjustments.append(f"jpeg_quality={quality}")
-        return encoded, adjustments
+    if image.height > image.width:
+        notes.append("hochformat_zugeschnitten")
+    image = _center_crop_ratio(image, TARGET_RATIO)
+    image = image.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
+
+    encoded, quality = _encode_jpeg_with_limit(image)
+    notes.append(f"jpeg_quality={quality}")
+    return encoded, notes
 
 
-def _ensure_landscape(image: Image.Image) -> Image.Image:
-    width, height = image.size
-    if height > width:
-        return image.rotate(90, expand=True, resample=Image.Resampling.BICUBIC)
-    return image
+def _develop_with_lightcraft(image: Image.Image) -> tuple[Image.Image, list[str]]:
+    if not lightcraft_available():
+        raise LightCraftError("LightCraft ist auf dem Server nicht installiert (lightcraft-cli fehlt).")
+
+    with tempfile.TemporaryDirectory(prefix="lightcraft-") as tmp:
+        src = Path(tmp) / "in.tif"
+        dst = Path(tmp) / "out.tif"
+        image.save(src, format="TIFF")
+
+        cmd = [
+            LIGHTCRAFT_CLI, "run", "--keep-going",
+            "--import", str(src),
+            "preset.import", f"paths={json.dumps([str(PRESET_PATH)])}",
+            "preset.apply", f"id={_preset_id()}",
+            "crop.autoStraighten",
+            "app.export", f"path={dst}", "longEdge=0",
+        ]
+        # Eigenes HOME je Lauf: LightCraft legt so keine Einstellungen oder Caches dauerhaft ab.
+        env = {**os.environ, "HOME": tmp}
+        with _LIGHTCRAFT_SLOTS:
+            try:
+                proc = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=LIGHTCRAFT_TIMEOUT_S, env=env
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise LightCraftError("LightCraft hat zu lange gebraucht.") from exc
+
+        results = _parse_results(proc.stdout)
+        failed = {k: v for k, v in results.items() if not v.get("ok")}
+        for step in ("preset.import", "preset.apply", "app.export"):
+            if step in failed or step not in results:
+                detail = failed.get(step, {}).get("error") or proc.stderr.strip()[-300:] or "keine Antwort"
+                raise LightCraftError(f"LightCraft-Schritt {step} fehlgeschlagen: {detail}")
+        if not dst.is_file():
+            raise LightCraftError("LightCraft hat keine Datei exportiert.")
+
+        notes = ["lightcraft_preset=SOCCA"]
+        straighten = results.get("crop.autoStraighten", {})
+        result = straighten.get("result") or {}
+        if straighten.get("ok") and result.get("changed"):
+            notes.append(f"gerade_ausgerichtet={result.get('angle', 0):.2f}°")
+        else:
+            notes.append("gerade_ausrichten=keine_änderung")
+
+        with Image.open(dst) as developed:
+            return developed.convert("RGB"), notes
+
+
+def _parse_results(stdout: str) -> dict[str, dict]:
+    """lightcraft-cli run gibt je Befehl eine JSON-Zeile aus: {command, ok, result|error, ms}."""
+    results: dict[str, dict] = {}
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if "command" in entry:
+            results[entry["command"]] = entry
+    return results
 
 
 def _center_crop_ratio(image: Image.Image, target_ratio: float) -> Image.Image:
@@ -105,93 +200,8 @@ def _center_crop_ratio(image: Image.Image, target_ratio: float) -> Image.Image:
     return image.crop((0, top, width, top + new_height))
 
 
-def _auto_level_horizon(image: Image.Image) -> Image.Image:
-    """Rotate slightly tilted images to a more horizontal position."""
-    width, height = image.size
-    rgb = image.convert("RGB")
-    try:
-        frame = np.array(rgb)
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 50, 150, apertureSize=3)
-
-        lines = cv2.HoughLinesP(
-            edges,
-            rho=1,
-            theta=np.pi / 180,
-            threshold=90,
-            minLineLength=max(60, min(width, height) // 4),
-            maxLineGap=25,
-        )
-        if lines is None:
-            return rgb
-
-        weighted_angles: list[tuple[float, float]] = []
-        for line in lines:
-            # OpenCV may return shape (N, 1, 4) or (N, 4) depending on build/version.
-            coords = np.asarray(line).reshape(-1)
-            if coords.size < 4:
-                continue
-            x1, y1, x2, y2 = (int(v) for v in coords[:4])
-            dx = x2 - x1
-            dy = y2 - y1
-            if dx == 0 and dy == 0:
-                continue
-            angle = float(np.degrees(np.arctan2(dy, dx)))
-            if angle > 90:
-                angle -= 180
-            elif angle < -90:
-                angle += 180
-            # Only consider near-horizontal lines.
-            if abs(angle) > 12:
-                continue
-            length = float(np.hypot(dx, dy))
-            if length < min(width, height) * 0.12:
-                continue
-            weighted_angles.append((angle, length))
-
-        if len(weighted_angles) < 10:
-            return rgb
-
-        angles = np.array([angle for angle, _ in weighted_angles], dtype=np.float32)
-        weights = np.array([weight for _, weight in weighted_angles], dtype=np.float32)
-        rotation_angle = _weighted_median(angles, weights)
-        spread = _weighted_median(np.abs(angles - rotation_angle), weights)
-
-        # Only rotate when signal is clear and tilt is meaningful.
-        if spread > 1.8 or abs(rotation_angle) < 1.2:
-            return rgb
-        rotation_angle = float(np.clip(rotation_angle, -5.0, 5.0))
-
-        rotated = rgb.rotate(
-            -rotation_angle,
-            resample=Image.Resampling.BICUBIC,
-            expand=True,
-            fillcolor=(255, 255, 255),
-        )
-        return ImageOps.fit(
-            rotated,
-            (width, height),
-            method=Image.Resampling.BICUBIC,
-            centering=(0.5, 0.5),
-        )
-    except Exception:
-        # Horizon leveling is optional; never fail the whole image pipeline.
-        return rgb
-
-
-def _weighted_median(values: np.ndarray, weights: np.ndarray) -> float:
-    order = np.argsort(values)
-    sorted_values = values[order]
-    sorted_weights = weights[order]
-    cumulative = np.cumsum(sorted_weights)
-    cutoff = sorted_weights.sum() * 0.5
-    index = int(np.searchsorted(cumulative, cutoff))
-    return float(sorted_values[min(index, len(sorted_values) - 1)])
-
-
 def _encode_jpeg_with_limit(image: Image.Image) -> tuple[bytes, int]:
-    for quality in range(JPEG_QUALITY, 34, -5):
+    for quality in range(JPEG_QUALITY, 29, -5):
         output = io.BytesIO()
         image.save(
             output,
@@ -204,161 +214,4 @@ def _encode_jpeg_with_limit(image: Image.Image) -> tuple[bytes, int]:
         data = output.getvalue()
         if len(data) <= MAX_TARGET_BYTES:
             return data, quality
-
-    # Hard cap fallback.
-    output = io.BytesIO()
-    image.save(
-        output,
-        format="JPEG",
-        quality=30,
-        optimize=True,
-        progressive=True,
-        subsampling="4:2:0",
-    )
-    data = output.getvalue()
-    if len(data) <= MAX_TARGET_BYTES:
-        return data, 30
-    raise ValueError("Zieldatei überschreitet 1MB trotz maximaler Kompression.")
-
-
-def _adaptive_premium_adjust(image: Image.Image) -> tuple[Image.Image, list[str]]:
-    """
-    Conservative auto-enhancement for premium website presentation.
-    Priority is natural look over aggressive effect.
-    """
-    adjusted = image
-    adjustments: list[str] = []
-
-    shadow_lifted, shadow_note = _lift_shadows_if_needed(adjusted)
-    adjusted = shadow_lifted
-    if shadow_note:
-        adjustments.append(shadow_note)
-
-    brightness_factor = _brightness_factor(adjusted)
-    if abs(brightness_factor - 1.0) >= 0.015:
-        adjusted = ImageEnhance.Brightness(adjusted).enhance(brightness_factor)
-        adjustments.append(f"brightness={brightness_factor:.3f}")
-
-    contrast_factor = _contrast_factor(adjusted)
-    if abs(contrast_factor - 1.0) >= 0.015:
-        adjusted = ImageEnhance.Contrast(adjusted).enhance(contrast_factor)
-        adjustments.append(f"contrast={contrast_factor:.3f}")
-
-    color_factor = _saturation_factor(adjusted)
-    if abs(color_factor - 1.0) >= 0.015:
-        adjusted = ImageEnhance.Color(adjusted).enhance(color_factor)
-        adjustments.append(f"saturation={color_factor:.3f}")
-
-    wb_image, wb_note = _neutralize_color_cast(adjusted)
-    adjusted = wb_image
-    if wb_note:
-        adjustments.append(wb_note)
-
-    sharp_factor = _sharpness_factor(adjusted)
-    if abs(sharp_factor - 1.0) >= 0.02:
-        adjusted = ImageEnhance.Sharpness(adjusted).enhance(sharp_factor)
-        adjustments.append(f"sharpness={sharp_factor:.3f}")
-
-    if not adjustments:
-        adjustments.append("no_adjustment_needed")
-
-    return adjusted, adjustments
-
-
-def _brightness_factor(image: Image.Image) -> float:
-    gray = np.array(image.convert("L"), dtype=np.uint8)
-    luminance = float(gray.mean())
-    p25 = float(np.percentile(gray, 25))
-    if p25 < 40:
-        return 1.32
-    if p25 < 55:
-        return 1.18
-    if luminance < 85:
-        return 1.14
-    if luminance < 105:
-        return 1.08
-    if luminance > 185:
-        return 0.93
-    if luminance > 170:
-        return 0.97
-    return 1.0
-
-
-def _contrast_factor(image: Image.Image) -> float:
-    luminance_stat = ImageStat.Stat(image.convert("L"))
-    stddev = luminance_stat.stddev[0]
-    if stddev < 34:
-        return 1.14
-    if stddev < 44:
-        return 1.08
-    if stddev > 82:
-        return 0.92
-    return 1.0
-
-
-def _saturation_factor(image: Image.Image) -> float:
-    hsv = image.convert("HSV")
-    sat_mean = ImageStat.Stat(hsv).mean[1]
-    if sat_mean < 80:
-        return 1.12
-    if sat_mean < 110:
-        return 1.06
-    if sat_mean > 185:
-        return 0.90
-    return 1.0
-
-
-def _sharpness_factor(image: Image.Image) -> float:
-    # Mild edge energy estimate from luminance gradients.
-    gray = np.array(image.convert("L"), dtype=np.float32)
-    grad_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
-    edge_energy = float(np.mean(np.hypot(grad_x, grad_y)))
-    if edge_energy < 24:
-        return 1.07
-    if edge_energy > 62:
-        return 0.97
-    return 1.0
-
-
-def _neutralize_color_cast(image: Image.Image) -> tuple[Image.Image, str]:
-    arr = np.asarray(image, dtype=np.float32)
-    channel_means = arr.reshape(-1, 3).mean(axis=0)
-    mean_gray = float(channel_means.mean())
-    if mean_gray <= 0:
-        return image, ""
-
-    raw_gains = mean_gray / channel_means
-    # Keep correction subtle.
-    gains = np.clip(raw_gains, 0.94, 1.06)
-    if np.max(np.abs(gains - 1.0)) < 0.01:
-        return image, ""
-
-    corrected = arr * gains
-    corrected = np.clip(corrected, 0, 255).astype(np.uint8)
-    gain_text = f"wb_r={gains[0]:.3f},wb_g={gains[1]:.3f},wb_b={gains[2]:.3f}"
-    return Image.fromarray(corrected, mode="RGB"), gain_text
-
-
-def _lift_shadows_if_needed(image: Image.Image) -> tuple[Image.Image, str]:
-    """
-    Lift shadow detail on dark images with a soft gamma curve.
-    Keeps highlights controlled and avoids a washed-out look.
-    """
-    gray = np.array(image.convert("L"), dtype=np.uint8)
-    p25 = float(np.percentile(gray, 25))
-    mean = float(gray.mean())
-    if p25 >= 65 and mean >= 105:
-        return image, ""
-
-    if p25 < 40 or mean < 80:
-        gamma = 0.82
-    elif p25 < 52 or mean < 92:
-        gamma = 0.88
-    else:
-        gamma = 0.93
-
-    arr = np.asarray(image, dtype=np.float32) / 255.0
-    lifted = np.power(arr, gamma)
-    lifted = np.clip(lifted * 255.0, 0, 255).astype(np.uint8)
-    return Image.fromarray(lifted, mode="RGB"), f"shadow_gamma={gamma:.2f}"
+    raise ValueError("Zieldatei überschreitet 1 MB trotz maximaler Kompression.")
