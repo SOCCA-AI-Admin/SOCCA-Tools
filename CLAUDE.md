@@ -31,7 +31,7 @@ wenn alle Bilder zugeordnet sind. Entfernen mit ✕ (6 Sekunden rückgängig mac
 - `app/templates/hotel.html` – Oberfläche; Dateiendungen und Mindestpixel kommen per `data-*` aus Python
 - `app/static/hotel.js` – Upload-Warteschlange, Kategorien (`CATS`), Drag & Drop, Dateinamen, Export
 - `app/static/zip.js` – eigener ZIP-Schreiber (Methode „stored“), keine Fremdbibliothek
-- `app/static/logos/` – Negativ-Logos (weiße Schrift) für den schwarzen Kopf: `<brand>.png` für die Brand-Auswahl, `socca-group.png` für die Kopfzeile; fehlt ein Brand-Logo, steht der Name als Text (ATHLETICSTOURS fehlt noch)
+- `app/static/logos/` – Negativ-Logos (weiße Schrift) für den schwarzen Kopf: `<brand>.png` für die Brand-Auswahl, `socca-group.png` für die Kopfzeile; fehlt ein Brand-Logo, steht der Name als Text
 - `app/static/hotel.css` – Gestaltung nach SOCCA GROUP Design System, Tokens wie im Sales Cockpit
 - `Dockerfile`, `docker-compose.yml` – Produktion
 - `start-hotel.bat`, `start-hotel.ps1` – lokaler Start unter Windows

@@ -1,11 +1,11 @@
 Logos für den Kopf des Tools
 
-Brand-Auswahl: Dateiname = Brand in Kleinbuchstaben, Format PNG (oder SVG, WebP, JPG):
+Brand-Auswahl (fehlt eine Datei, steht der Name als Text): Dateiname = Brand in Kleinbuchstaben, Format PNG (oder SVG, WebP, JPG):
 
   soccatours.png
   soccacup.png
   swimtours.png
-  athleticstours.png   (fehlt noch, bis dahin steht der Name als Text)
+  athleticstours.png
   tennistours.png
 
 Kopfzeile: socca-group.png (SOCCA GROUP, monochrom weiß)

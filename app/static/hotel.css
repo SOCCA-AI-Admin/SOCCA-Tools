@@ -49,12 +49,13 @@ header p{color:#b9b9b4;font-size:14px;margin:0;max-width:90ch}
 .brandpick{margin-top:var(--s-5);display:flex;flex-direction:column;gap:var(--s-2)}
 .brandlabel{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#8a8a85}
 .brandtiles{display:flex;gap:var(--s-3);flex-wrap:wrap}
-.tile{--tile:var(--brand);height:104px;width:196px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;
+.tile{--tile:var(--brand);height:104px;width:224px;padding:12px 10px;display:inline-flex;align-items:center;justify-content:center;
   background:transparent;border:1px solid #3a3a3a;border-radius:var(--r-md);color:#fff;cursor:pointer;
   transition:border-color 140ms var(--ease),background 140ms var(--ease),opacity 140ms var(--ease)}
 .tile[data-brand=SOCCATOURS],.tile[data-brand=SOCCACUP]{--tile:#afca05}
 .tile[data-brand=SWIMTOURS]{--tile:#0089cf}
 .tile[data-brand=TENNISTOURS]{--tile:#f07812}
+.tile[data-brand=ATHLETICSTOURS]{--tile:#dc5c56}
 .tile img{display:block;height:78px;width:auto;max-width:100%;object-fit:contain}
 .tile .txt{font-size:15px;font-weight:900;letter-spacing:.06em}
 .tile:hover:not(:disabled){border-color:#8a8a85;background:#111}
