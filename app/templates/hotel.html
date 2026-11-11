@@ -7,18 +7,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/hotel.css?v=3" />
+    <link rel="stylesheet" href="/static/hotel.css?v=4" />
   </head>
   <body data-ext="{{ extensions | join(',') }}" data-min-pixels="{{ min_pixels }}">
     <header>
       <div class="bar"></div>
-      <div class="inner headrow">
-        <div>
+      <div class="inner">
+        <div class="toprow">
+          {% if group_logo %}
+          <img class="group-logo" src="{{ group_logo }}" alt="SOCCA GROUP" />
+          {% else %}
           <div class="eyebrow">SOCCA GROUP</div>
-          <h1><a href="./" id="homeLink">Bilder Destinationen</a></h1>
-          <p>Bilder hochladen, Kategorien zuordnen, Reihenfolge festlegen und als ZIP mit fertigen Dateinamen laden.</p>
+          {% endif %}
+          <button class="chip sm" id="themeBtn" type="button" aria-pressed="false">Dunkel</button>
         </div>
-        <button class="chip sm" id="themeBtn" type="button" aria-pressed="false">Dunkel</button>
+        <h1><a href="./" id="homeLink">Bilder Destinationen</a></h1>
+        <p>Bilder hochladen, Kategorien zuordnen, Reihenfolge festlegen und als ZIP mit fertigen Dateinamen laden.</p>
+        <div class="brandpick" role="group" aria-labelledby="brandLabel">
+          <span class="brandlabel" id="brandLabel">Brand wählen</span>
+          <div class="brandtiles" id="brands">
+            {% for brand in brands %}
+            <button class="tile" type="button" data-brand="{{ brand }}" aria-pressed="false" title="{{ brand }}">
+              {% if logos[brand] %}<img src="{{ logos[brand] }}" alt="{{ brand }}" />{% else %}<span class="txt">{{ brand }}</span>{% endif %}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </header>
 
@@ -27,20 +41,6 @@
         <div class="field hotelfield">
           <label for="hotelName">Hotelname</label>
           <input id="hotelName" type="text" placeholder="z. B. Hotel Sonnenblick" autocomplete="off" />
-        </div>
-        <div class="field" role="group" aria-labelledby="brandLabel">
-          <label id="brandLabel">Brand</label>
-          <div class="presets" id="brands">
-            {% for brand in brands %}
-            {% if logos[brand] %}
-            <button class="chip logo" type="button" data-brand="{{ brand }}" aria-pressed="false" title="{{ brand }}">
-              <img src="{{ logos[brand] }}" alt="{{ brand }}" />
-            </button>
-            {% else %}
-            <button class="chip" type="button" data-brand="{{ brand }}" aria-pressed="false">{{ brand }}</button>
-            {% endif %}
-            {% endfor %}
-          </div>
         </div>
         <div class="spacer"></div>
         <div class="exportbox">
@@ -101,7 +101,7 @@
       <button type="button" id="toastUndo" hidden>Rückgängig</button>
     </div>
 
-    <script src="/static/zip.js?v=3"></script>
-    <script src="/static/hotel.js?v=3"></script>
+    <script src="/static/zip.js?v=4"></script>
+    <script src="/static/hotel.js?v=4"></script>
   </body>
 </html>

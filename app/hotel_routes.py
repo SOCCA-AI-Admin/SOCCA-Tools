@@ -38,6 +38,7 @@ async def hotel_index(request: Request):
         context={
             "brands": BRANDS,
             "logos": _brand_logos(),
+            "group_logo": _logo_url("socca-group"),
             "extensions": sorted(SUPPORTED_IMAGE_EXTENSIONS),
             "min_pixels": MIN_PIXEL_COUNT,
         },
@@ -103,16 +104,23 @@ def process_upload(
     }
 
 
+def _logo_url(stem: str) -> str | None:
+    """Pfad zu app/static/logos/<stem>.<svg|png|webp|jpg>, falls vorhanden."""
+    for ext in LOGO_EXTENSIONS:
+        path = LOGO_DIR / f"{stem}{ext}"
+        if path.is_file():
+            return f"/static/logos/{path.name}?v={int(path.stat().st_mtime)}"
+    return None
+
+
 def _brand_logos() -> dict[str, str]:
-    """Logo je Brand aus app/static/logos/<brand>.<svg|png|webp|jpg>, Dateiname klein geschrieben.
+    """Logo je Brand aus app/static/logos/<brand>.<ext>, Dateiname klein geschrieben.
     Fehlt ein Logo, zeigt die Oberfläche den Namen als Text."""
     logos: dict[str, str] = {}
     for brand in BRANDS:
-        for ext in LOGO_EXTENSIONS:
-            path = LOGO_DIR / f"{brand.lower()}{ext}"
-            if path.is_file():
-                logos[brand] = f"/static/logos/{path.name}?v={int(path.stat().st_mtime)}"
-                break
+        url = _logo_url(brand.lower())
+        if url:
+            logos[brand] = url
     return logos
 
 

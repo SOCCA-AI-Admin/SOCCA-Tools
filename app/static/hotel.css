@@ -37,13 +37,31 @@ button{font-family:inherit}
 /* ---------- Kopf ---------- */
 header{background:var(--soc-black);color:#fff;padding:var(--s-3) 0 0}
 header .bar{height:6px;background:linear-gradient(120deg,#0089cf 0%,#0bbbef 38%,#6dbe3a 70%,#afca05 100%)}
-header .inner{max-width:1440px;margin:0 auto;padding:var(--s-3) var(--s-5) var(--s-4)}
-.headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-3) var(--s-5);flex-wrap:wrap}
-header h1{color:#fff;font-size:40px;margin:var(--s-1) 0 var(--s-1)}
+header .inner{max-width:1440px;margin:0 auto;padding:var(--s-4) var(--s-5) var(--s-5)}
+.toprow{display:flex;justify-content:space-between;align-items:center;gap:var(--s-4)}
+.group-logo{display:block;height:22px;width:auto}
+header h1{color:#fff;font-size:40px;margin:var(--s-4) 0 var(--s-1)}
 header h1 a{color:inherit;text-decoration:none}
 header h1 a:hover{opacity:.85}
 header p{color:#b9b9b4;font-size:14px;margin:0;max-width:90ch}
-header .chip{margin-bottom:4px}
+
+/* Brand-Auswahl im Kopf: Negativ-Logos auf Schwarz, Rahmen in der Markenfarbe */
+.brandpick{margin-top:var(--s-5);display:flex;flex-direction:column;gap:var(--s-2)}
+.brandlabel{font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#8a8a85}
+.brandtiles{display:flex;gap:var(--s-3);flex-wrap:wrap}
+.tile{--tile:var(--brand);height:104px;width:196px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid #3a3a3a;border-radius:var(--r-md);color:#fff;cursor:pointer;
+  transition:border-color 140ms var(--ease),background 140ms var(--ease),opacity 140ms var(--ease)}
+.tile[data-brand=SOCCATOURS],.tile[data-brand=SOCCACUP]{--tile:#afca05}
+.tile[data-brand=SWIMTOURS]{--tile:#0089cf}
+.tile[data-brand=TENNISTOURS]{--tile:#f07812}
+.tile img{display:block;height:78px;width:auto;max-width:100%;object-fit:contain}
+.tile .txt{font-size:15px;font-weight:900;letter-spacing:.06em}
+.tile:hover:not(:disabled){border-color:#8a8a85;background:#111}
+.tile[aria-pressed=true]{border-color:var(--tile);box-shadow:0 0 0 1px var(--tile);background:#141414}
+.tile:disabled{cursor:default;opacity:.25}
+.tile[aria-pressed=true]:disabled{opacity:1}
+.tile:focus-visible{outline:2px solid #fff;outline-offset:2px}
 
 /* ---------- Steuerleiste ---------- */
 .controls{position:sticky;top:0;z-index:30;background:var(--bg-alt);
@@ -64,13 +82,6 @@ input[type=text]:disabled{background:var(--bg-alt);color:var(--fg-strong);font-w
 .chip[aria-pressed=true]{background:var(--fg-strong);color:var(--bg);border-color:var(--fg-strong)}
 .chip:disabled{cursor:default;opacity:.45}
 .chip[aria-pressed=true]:disabled{opacity:1}
-#brands:has(.logo) .chip{height:44px}
-/* Brand-Logos: immer auf Weiß, damit die Logos auch im Dunkelmodus lesbar bleiben */
-.chip.logo{background:#fff;border-color:var(--border);padding:4px 12px;height:44px;display:inline-flex;align-items:center}
-.chip.logo img{display:block;height:28px;width:auto;max-width:150px;object-fit:contain}
-.chip.logo[aria-pressed=true]{background:#fff;border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
-.chip.logo:disabled{opacity:.35}
-.chip.logo[aria-pressed=true]:disabled{opacity:1}
 .chip.sm{font-size:12px;padding:4px 9px;min-height:28px}
 .spacer{flex:1 1 auto}
 .exportbox{display:flex;flex-direction:column;align-items:flex-end;gap:var(--s-1)}
@@ -166,6 +177,9 @@ dialog#viewer::backdrop{background:rgba(0,0,0,.6)}
 
 @media (max-width:640px){
   header h1{font-size:28px}
+  .brandtiles{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-2)}
+  .tile{height:80px;width:auto;padding:8px 10px}
+  .tile img{height:56px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
   .exportbox{width:100%;align-items:stretch}
   .exportbox .btns .btn-primary{flex:1}

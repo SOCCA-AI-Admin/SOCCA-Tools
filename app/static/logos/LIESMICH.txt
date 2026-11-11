@@ -1,13 +1,15 @@
-Brand-Logos für die Markenauswahl
+Logos für den Kopf des Tools
 
-Dateiname = Brand in Kleinbuchstaben, Format SVG (bevorzugt), PNG, WebP oder JPG:
+Brand-Auswahl: Dateiname = Brand in Kleinbuchstaben, Format PNG (oder SVG, WebP, JPG):
 
-  soccatours.svg
-  soccacup.svg
-  swimtours.svg
-  athleticstours.svg
-  tennistours.svg
+  soccatours.png
+  soccacup.png
+  swimtours.png
+  athleticstours.png   (fehlt noch, bis dahin steht der Name als Text)
+  tennistours.png
 
-Liegt für eine Brand kein Logo vor, zeigt das Tool ihren Namen als Text.
-Logos werden auf weißem Grund gezeigt, auch im Dunkelmodus. Am besten eignet sich
-die querformatige Version mit transparentem Hintergrund.
+Kopfzeile: socca-group.png (SOCCA GROUP, monochrom weiß)
+
+Die Logos stehen auf schwarzem Grund, deshalb die Negativ-Versionen (Schrift weiß)
+aus SOCCAMEDIA > CI Guidelines 2025 > NEXUS Struktur > 02_LOGOS verwenden.
+Transparenten Rand vorher wegschneiden; 192 px Höhe reichen (Anzeige 78 px).

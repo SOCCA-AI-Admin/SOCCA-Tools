@@ -17,7 +17,7 @@ Lokaler Arbeitsordner: `OneDrive - SOCCA GROUP\Process\KI\SOCCA PiXX`.
 Aufbereitung von Hotelbildern für Trainingslager-Präsentationen. Ablauf, Kategorien und
 Nummernkreise: siehe `HOTEL_BILDER.md`.
 
-Kurz: Hotelname und Brand angeben (danach fest), Bilder oder ZIPs hochladen, jedes Bild wird
+Kurz: Brand im schwarzen Kopf per Logo wählen, Hotelname angeben (beides danach fest), Bilder oder ZIPs hochladen, jedes Bild wird
 einzeln bearbeitet und erscheint unter „Nicht zugeordnet“. Bilder werden sieben Kategorien mit
 festen Nummernkreisen (010–019 bis 070–079, je max. 10 Bilder) zugeordnet und sortiert.
 Dateiname `Hotelname_Brand_XXX.jpg`, Nummer aus Kategorie und Position. Export als ZIP erst,
@@ -31,7 +31,7 @@ wenn alle Bilder zugeordnet sind. Entfernen mit ✕ (6 Sekunden rückgängig mac
 - `app/templates/hotel.html` – Oberfläche; Dateiendungen und Mindestpixel kommen per `data-*` aus Python
 - `app/static/hotel.js` – Upload-Warteschlange, Kategorien (`CATS`), Drag & Drop, Dateinamen, Export
 - `app/static/zip.js` – eigener ZIP-Schreiber (Methode „stored“), keine Fremdbibliothek
-- `app/static/logos/` – Brand-Logos für die Markenauswahl (`<brand>.svg|png|webp|jpg`, klein geschrieben); fehlt eins, steht der Name als Text
+- `app/static/logos/` – Negativ-Logos (weiße Schrift) für den schwarzen Kopf: `<brand>.png` für die Brand-Auswahl, `socca-group.png` für die Kopfzeile; fehlt ein Brand-Logo, steht der Name als Text (ATHLETICSTOURS fehlt noch)
 - `app/static/hotel.css` – Gestaltung nach SOCCA GROUP Design System, Tokens wie im Sales Cockpit
 - `Dockerfile`, `docker-compose.yml` – Produktion
 - `start-hotel.bat`, `start-hotel.ps1` – lokaler Start unter Windows

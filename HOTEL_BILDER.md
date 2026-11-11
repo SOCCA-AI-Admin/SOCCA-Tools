@@ -6,7 +6,7 @@ Webbasiertes Tool zur Aufbereitung von Hotelbildern für Trainingslager-Präsent
 
 ## Ablauf
 
-1. Hotelname eingeben und Brand wählen (SOCCATOURS, SOCCACUP, SWIMTOURS, ATHLETICSTOURS, TENNISTOURS).
+1. Brand im Kopf per Logo wählen (SOCCATOURS, SOCCACUP, SWIMTOURS, ATHLETICSTOURS, TENNISTOURS) und Hotelname eingeben.
    Beides ist nach dem ersten Upload fest; „Neu beginnen“ setzt alles zurück.
 2. Bilder oder ZIP-Dateien hochladen. Jedes Bild wird einzeln bearbeitet (1800 × 1200 px, 3:2, JPG, höchstens 1 MB).
    Bilder unter 480.000 Pixel werden übersprungen. Weitere Bilder lassen sich jederzeit nachladen.
