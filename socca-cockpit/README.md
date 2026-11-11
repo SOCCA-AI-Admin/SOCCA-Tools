@@ -660,6 +660,7 @@ greift dann Deutsch.
 | `etl.py` | Liest Mappe und Combit-Export, schreibt `data.json` |
 | `build.py` | Setzt Vorlage, Kartengeometrie und Daten zur fertigen Seite zusammen |
 | `dashboard.tpl.html` | Die Oberfläche — Struktur, Stil und die gesamte Auswertungslogik |
+| `logos/` | Logos im schwarzen Kopf (SOCCA GROUP und die fünf Marken, Negativ-Versionen), `build.py` bettet sie ein |
 | `geo/geo.js` | Kartengeometrie als SVG-Pfade, fertig gebaut |
 | `i18n.js` | Oberflächentexte in zehn Sprachen, fertig gebaut |
 | `i18n/en.py` | Englische Texte, werden von `make_i18n.py` eingelesen |
@@ -749,6 +750,11 @@ Die vollständigen Definitionen stehen im Dashboard selbst unter
   `plz_region`; Anfragen und Angebote gibt es dort jetzt auch je Region.
 - **Buchungsquote** = Buchungen ÷ Unique Anfragen, je Team und je Hotel,
   mit Vorjahr. **Abschlussquote** = Buchungen ÷ Angebote.
+- **Markenlogos im Kopf:** Neben „Sales Cockpit“ stehen SOCCATOURS, SOCCACUP,
+  SWIMTOURS, ATHLETICSTOURS und TENNISTOURS. Ein Klick setzt den Filter
+  *Bereich* (Fußball Trainingslager, Fußball Turniere, Schwimmtrainingslager,
+  Leichtathletik Trainingslager, Tennistrainingslager), ein zweiter Klick hebt
+  ihn auf. Die Logos liegen in `logos/` und werden beim Bauen eingebettet.
 - **Filterleiste:** Beim Start ist nur der Buchungs- / Erfassungszeitraum mit
   Schnellauswahl zu sehen. Die Lasche *Filter* (Trichter-Symbol)
   klappt Bereich, Team, Reiseland, Kundenherkunft, Region und Reisezeitraum

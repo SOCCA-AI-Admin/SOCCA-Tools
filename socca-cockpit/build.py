@@ -20,6 +20,11 @@ tpl = (base / 'dashboard.tpl.html').read_text(encoding='utf-8')
 tpl = tpl.replace('/*__GEO__*/', (base / 'geo' / 'geo.js').read_text(encoding='utf-8') + '\n' +
                   (base / 'geo' / 'geo_plz.js').read_text(encoding='utf-8'))
 tpl = tpl.replace('/*__I18N__*/', (base / 'i18n.js').read_text(encoding='utf-8'))
+# Logos im Kopf: __LOGO_<name>__ -> eingebettetes PNG (logos/<name>.png),
+# damit auch die Einzeldatei ohne Webserver die Logos zeigt
+import base64
+for f in sorted((base / 'logos').glob('*.png')):
+    tpl = tpl.replace(f'__LOGO_{f.stem}__', 'data:image/png;base64,' + base64.b64encode(f.read_bytes()).decode())
 tpl = tpl.replace('/*__REPORTS__*/', (base / 'reports.js').read_text(encoding='utf-8'))
 data = data_path.read_text(encoding='utf-8')
 

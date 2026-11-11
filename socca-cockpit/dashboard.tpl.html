@@ -64,6 +64,17 @@ header h1 a{color:inherit;text-decoration:none}
 header h1 a:hover{color:#fff;opacity:.85}
 header p{color:#b9b9b4;font-size:14px;margin:0;max-width:90ch}
 .headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--s-3) var(--s-5);flex-wrap:wrap}
+/* SOCCA GROUP als Logo in der Kopfzeile, Marken neben dem Titel */
+.eyebrow .grouplogo{height:12px;width:auto;display:inline-block;vertical-align:-1px}
+.titlerow{display:flex;align-items:flex-end;gap:var(--s-3) var(--s-6);flex-wrap:wrap}
+.brands{display:flex;align-items:flex-end;gap:var(--s-4);padding-bottom:2px}
+.brands button{background:none;border:0;padding:3px 4px;cursor:pointer;border-radius:var(--r-md);
+  opacity:.9;transition:opacity 140ms var(--ease),transform 140ms var(--ease)}
+.brands button:hover{opacity:1;transform:translateY(-1px)}
+.brands img{height:44px;width:auto;display:block}
+.brands.on button{opacity:.32}
+.brands.on button[aria-pressed=true]{opacity:1;box-shadow:inset 0 -3px 0 var(--brand)}
+@media (max-width:700px){.brands{flex-wrap:wrap;gap:4px var(--s-2)}.brands img{height:26px}}
 .headctl{align-items:center;padding-bottom:4px}
 
 /* ---------- Steuerleiste ---------- */
@@ -485,8 +496,18 @@ footer{border-top:1px solid var(--border);padding-top:var(--s-4);font-size:12px;
   <div class="inner">
     <div class="headrow">
       <div>
-        <div class="eyebrow">SOCCA GROUP · <span data-i18n="app.sub"></span></div>
-        <h1><a href="./" id="homeLink">Sales Cockpit</a></h1>
+        <div class="eyebrow"><img class="grouplogo" src="__LOGO_socca-group__" alt="SOCCA GROUP"> · <span data-i18n="app.sub"></span></div>
+        <div class="titlerow">
+          <h1><a href="./" id="homeLink">Sales Cockpit</a></h1>
+          <!-- Marken: Klick setzt den Filter „Bereich“, erneuter Klick hebt ihn auf -->
+          <div class="brands" id="brands">
+            <button type="button" data-grp="futl"><img src="__LOGO_soccatours__" alt="SOCCATOURS"></button>
+            <button type="button" data-grp="futu"><img src="__LOGO_soccacup__" alt="SOCCACUP"></button>
+            <button type="button" data-grp="swim"><img src="__LOGO_swimtours__" alt="SWIMTOURS"></button>
+            <button type="button" data-grp="latr"><img src="__LOGO_athleticstours__" alt="ATHLETICSTOURS"></button>
+            <button type="button" data-grp="teca"><img src="__LOGO_tennistours__" alt="TENNISTOURS"></button>
+          </div>
+        </div>
       </div>
       <div class="presets headctl">
         <div class="presets" id="viewSw">
@@ -1227,6 +1248,13 @@ function initControls(){
   const g=document.getElementById('grp');
   g.innerHTML = GROUPS.map(x=>`<option value="${x.id}">${t(x.k)}</option>`).join('');
   g.onchange = ()=>{ state.group=g.value; fillTeams(); render(); };
+  /* Markenlogos im Kopf setzen den Bereich; Klick auf die aktive Marke hebt ihn auf */
+  document.querySelectorAll('#brands button[data-grp]').forEach(b=>b.onclick=()=>{
+    state.group = state.group===b.dataset.grp ? 'all' : b.dataset.grp;
+    g.value=state.group; fillTeams();
+    if(typeof STATE_VIEW!=='undefined' && STATE_VIEW==='reports'){ const c=document.querySelector('#viewSw [data-v="cockpit"]'); if(c) c.click(); }
+    render();
+  });
   fillTeams();
   document.getElementById('team').onchange = e => { state.team=e.target.value; render(); };
 
@@ -1445,6 +1473,11 @@ function render(){
   document.getElementById('herk').value=state.herk;
   document.getElementById('region').value=state.region;
   /* Zahl aktiver weiterer Filter an der Lasche — sichtbar auch im eingeklappten Zustand */
+  document.getElementById('brands').classList.toggle('on', state.group!=='all');
+  document.querySelectorAll('#brands button[data-grp]').forEach(b=>{
+    b.setAttribute('aria-pressed', String(b.dataset.grp===state.group));
+    b.title = t('grp.'+b.dataset.grp);
+  });
   const nAct=[state.group!=='all', !!state.team, !!state.dest, !!state.dreg, !!state.herk, !!state.region, !!state.plz, arrActive()].filter(Boolean).length;
   const pc=document.getElementById('plzChip'); pc.hidden=!state.plz;
   if(state.plz){ pc.textContent=`${t('ctl.plz')}: ${plzLabel(+state.plz)} ✕`; pc.title=t('pz.clear'); }
